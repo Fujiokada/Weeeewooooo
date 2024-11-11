@@ -61,7 +61,7 @@ local function takeQuest()
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
     
     -- Fire the dialogue remote 3 times with 1-second delay
-    for _ = 1, 4 do
+    for _ = 1, 6 do
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
         wait(1)
     end
