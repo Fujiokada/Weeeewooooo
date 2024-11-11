@@ -1,0 +1,162 @@
+-- Initialize paths and settings
+local player = game:GetService("Players").LocalPlayer
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
+local aiCharacters = workspace:WaitForChild("AiCharacters")
+local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+local targetQuestName = "Defeat Strong Souls"
+local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local punchToolName = "Punch"
+local teleportPosition = Vector3.new(232, 3, -703)
+local toggle = true  -- Toggle to start/stop the autofarm
+
+-- Function to check if character is alive
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild("Venqtrix")
+    return character and character:FindFirstChild("Customizations") ~= nil
+end
+
+-- Function to respawn character
+local function respawnCharacter()
+    spawnRemote:FireServer(1)
+end
+
+-- Enhanced function to check for quest
+local function hasQuest()
+    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
+        local questName = questHolder.Quest.QuestName.ContentText
+        print("Currently active quest:", questName)
+        return questName == targetQuestName
+    else
+        print("No active quest found in QuestHolder.")
+    end
+    return false
+end
+
+-- Function to check if quest is completed
+local function isQuestCompleted()
+    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
+        print("Quest progress:", questProgressPath.Progress.ContentText)
+        return questProgressPath.Progress.ContentText == "3/3"
+    else
+        print("Quest progress path or progress not found.")
+    end
+    return false
+end
+
+-- Function to get and equip the Punch tool
+local function equipPunchTool()
+    local tool = player.Backpack:FindFirstChild(punchToolName)
+    if tool then
+        tool.Parent = player.Character
+    end
+end
+
+-- Function to take the Strong Soul quest and initiate dialogue
+local function takeQuest()
+    print("Attempting to take quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)  -- 1-second delay
+    fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
+    
+    -- Fire the dialogue remote 6 times to reliably accept the quest
+    for _ = 1, 6 do
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+        wait(1)
+    end
+end
+
+-- Function to complete the quest with dialogue sequence
+local function completeQuest()
+    print("Starting quest completion process...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)
+    
+    local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
+    if prompt then
+        print("Firing proximity prompt to start quest completion dialogue.")
+        fireproximityprompt(prompt)
+    else
+        print("Proximity prompt not found!")
+        return
+    end
+    
+    -- Fire the dialogue remotes in sequence with retries for reliability
+    for i = 1, 2 do
+        print("Firing dialogue step 1...")
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+        wait(1)
+    end
+    
+    print("Firing dialogue step 2...")
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    wait(1)
+    
+    print("Firing dialogue step 3...")
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    
+    print("Quest completion process finished.")
+end
+
+-- Function to teleport behind and attack the enemy in a loop
+local function attackEnemy(enemy)
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
+        -- Position 5 studs behind the enemy and face it
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+        
+        -- Equip Punch tool
+        equipPunchTool()
+        
+        -- Small delay to simulate attacking and give time for re-teleport
+        wait(0.1)
+    end
+end
+
+-- Main loop
+spawn(function()
+    while toggle do
+        -- Step 1: Ensure character is alive
+        if not isCharacterAlive() then
+            respawnCharacter()
+            wait(2)  -- Wait a moment for respawn
+        end
+
+        -- Step 2: Equip punch tool
+        equipPunchTool()
+
+        -- Step 3: Check for the quest; only attempt to retake if no active quest is found
+        if not hasQuest() then
+            print("Quest not active. Attempting to take quest.")
+            takeQuest()
+            wait(2)  -- Small wait after taking the quest
+        end
+
+        -- Step 4: Check if quest is completed
+        if hasQuest() and isQuestCompleted() then
+            print("Quest completed. Attempting to complete quest dialogue.")
+            completeQuest()
+            wait(2)  -- Wait after completing quest to reset
+        end
+
+        -- Step 5: Loop through enemies and attack quest targets only if quest is active
+        if hasQuest() then
+            for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                    -- Check if enemy is a quest target
+                    for _, targetName in ipairs(targetEnemies) do
+                        if enemy.Name:find(targetName) then
+                            print("Attacking enemy:", enemy.Name)
+                            attackEnemy(enemy)
+                            break  -- Move to the next enemy once this one is dead
+                        end
+                    end
+                end
+            end
+        end
+
+        wait(0.5)  -- Delay before restarting the loop
+    end
+end)
