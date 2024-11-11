@@ -4,7 +4,7 @@ local replicatedStorage = game:GetService("ReplicatedStorage")
 local workspace = game:GetService("Workspace")
 local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
 local aiCharacters = workspace:WaitForChild("AiCharacters")
-local questPath = player.PlayerGui.GameUI.Quests.QuestHolder:FindFirstChild("Quest")
+local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Punch"
@@ -22,14 +22,14 @@ local function respawnCharacter()
     spawnRemote:FireServer(1)
 end
 
--- Function to check for quest
+-- Enhanced function to check for quest
 local function hasQuest()
-    if questPath and questPath:FindFirstChild("QuestName") then
-        local questName = questPath.QuestName.ContentText
+    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
+        local questName = questHolder.Quest.QuestName.ContentText
         print("Currently active quest:", questName)
         return questName == targetQuestName
     else
-        print("No quest is currently active or path is incorrect.")
+        print("No active quest found in QuestHolder.")
     end
     return false
 end
