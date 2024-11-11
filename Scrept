@@ -1,0 +1,128 @@
+-- Initialize paths and settings
+local player = game:GetService("Players").LocalPlayer
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
+local aiCharacters = workspace:WaitForChild("AiCharacters")
+local questPath = player.PlayerGui.GameUI.Quests.QuestHolder:FindFirstChild("Quest")
+local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame.QuestPartProgress:FindFirstChild("Progress")
+local targetQuestName = "Defeat Strong Souls"
+local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local punchToolName = "Punch"
+local teleportPosition = Vector3.new(232, 3, -703)
+local toggle = true  -- Toggle to start/stop the autofarm
+
+-- Function to check if character is alive
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild("Venqtrix")
+    return character and character:FindFirstChild("Customizations") ~= nil
+end
+
+-- Function to respawn character
+local function respawnCharacter()
+    spawnRemote:FireServer(1)
+end
+
+-- Function to check for quest
+local function hasQuest()
+    if questPath and questPath:FindFirstChild("QuestName") then
+        return questPath.QuestName.ContentText == targetQuestName
+    end
+    return false
+end
+
+-- Function to check if quest is completed
+local function isQuestCompleted()
+    return questProgressPath and questProgressPath.ContentText == "3/3"
+end
+
+-- Function to get and equip the Punch tool
+local function equipPunchTool()
+    local tool = player.Backpack:FindFirstChild(punchToolName)
+    if tool then
+        tool.Parent = player.Character
+    end
+end
+
+-- Function to take the Strong Soul quest and initiate dialogue
+local function takeQuest()
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(0.5)
+    fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
+    
+    -- Fire the dialogue remote 3 times with 0.5s delay
+    for _ = 1, 3 do
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+        wait(0.5)
+    end
+end
+
+-- Function to complete the quest with dialogue sequence
+local function completeQuest()
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(0.5)
+    fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
+    
+    -- Fire the dialogue remotes in sequence with 0.5s delay
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+    wait(0.5)
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    wait(0.5)
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+end
+
+-- Function to teleport behind and attack the enemy in a loop
+local function attackEnemy(enemy)
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
+        -- Position 5 studs behind the enemy and face it
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+        
+        -- Equip Punch tool
+        equipPunchTool()
+        
+        -- Small delay to simulate attacking and give time for re-teleport
+        wait(0.1)
+    end
+end
+
+-- Main loop
+spawn(function()
+    while toggle do
+        -- Step 1: Ensure character is alive
+        if not isCharacterAlive() then
+            respawnCharacter()
+            wait(2)  -- Wait a moment for respawn
+        end
+
+        -- Step 2: Equip punch tool
+        equipPunchTool()
+
+        -- Step 3: Check for the quest, take it if missing
+        if not hasQuest() then
+            takeQuest()
+            wait(2)  -- Small wait after taking the quest
+        end
+
+        -- Step 4: Check if quest is completed
+        if isQuestCompleted() then
+            completeQuest()
+            wait(2)  -- Wait after completing quest to reset
+        end
+
+        -- Step 5: Loop through enemies and attack quest targets
+        for _, enemy in ipairs(aiCharacters:GetChildren()) do
+            if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                -- Check if enemy is a quest target
+                for _, targetName in ipairs(targetEnemies) do
+                    if enemy.Name:find(targetName) then
+                        attackEnemy(enemy)
+                        break  -- Move to the next enemy once this one is dead
+                    end
+                end
+            end
+        end
+
+        wait(0.5)  -- Delay before restarting the loop
+    end
+end)
