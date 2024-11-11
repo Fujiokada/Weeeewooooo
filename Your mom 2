@@ -55,6 +55,7 @@ end
 
 -- Function to take the Strong Soul quest and initiate dialogue
 local function takeQuest()
+    print("Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(0.5)
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
@@ -68,16 +69,34 @@ end
 
 -- Function to complete the quest with dialogue sequence
 local function completeQuest()
+    print("Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(0.5)
-    fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
     
-    -- Fire the dialogue remotes in sequence with 0.5s delay
-    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-    wait(0.5)
+    local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
+    if prompt then
+        print("Firing proximity prompt to start quest completion dialogue.")
+        fireproximityprompt(prompt)
+    else
+        print("Proximity prompt not found!")
+        return
+    end
+    
+    -- Fire the dialogue remotes in sequence with retries for reliability
+    for i = 1, 2 do
+        print("Firing dialogue step 1...")
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+        wait(0.5)
+    end
+    
+    print("Firing dialogue step 2...")
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     wait(0.5)
+    
+    print("Firing dialogue step 3...")
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    
+    print("Quest completion process finished.")
 end
 
 -- Function to teleport behind and attack the enemy in a loop
