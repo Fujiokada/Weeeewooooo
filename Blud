@@ -10,7 +10,7 @@ local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Star Sword"
 local teleportPosition = Vector3.new(232, 3, -703)
 local toggle = true  -- Toggle to start/stop the autofarm
-local autoClickPosition = Vector2.new(903, 478)
+local autoClickPosition = Vector2.new(956, 459)
 local floatName = "FloatingPlatform"
 
 -- Function to check if character is alive
