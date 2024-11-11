@@ -5,7 +5,6 @@ local workspace = game:GetService("Workspace")
 local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
 local aiCharacters = workspace:WaitForChild("AiCharacters")
 local questPath = player.PlayerGui.GameUI.Quests.QuestHolder:FindFirstChild("Quest")
-local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Punch"
@@ -33,6 +32,7 @@ end
 
 -- Function to check if quest is completed
 local function isQuestCompleted()
+    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
     if questProgressPath and questProgressPath:FindFirstChild("Progress") then
         return questProgressPath.Progress.ContentText == "3/3"
     end
