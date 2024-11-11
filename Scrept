@@ -5,7 +5,7 @@ local workspace = game:GetService("Workspace")
 local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
 local aiCharacters = workspace:WaitForChild("AiCharacters")
 local questPath = player.PlayerGui.GameUI.Quests.QuestHolder:FindFirstChild("Quest")
-local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame.QuestPartProgress:FindFirstChild("Progress")
+local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Punch"
@@ -33,7 +33,10 @@ end
 
 -- Function to check if quest is completed
 local function isQuestCompleted()
-    return questProgressPath and questProgressPath.ContentText == "3/3"
+    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
+        return questProgressPath.Progress.ContentText == "3/3"
+    end
+    return false
 end
 
 -- Function to get and equip the Punch tool
@@ -105,7 +108,7 @@ spawn(function()
         end
 
         -- Step 4: Check if quest is completed
-        if isQuestCompleted() then
+        if hasQuest() and isQuestCompleted() then
             completeQuest()
             wait(2)  -- Wait after completing quest to reset
         end
