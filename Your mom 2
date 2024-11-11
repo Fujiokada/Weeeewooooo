@@ -25,10 +25,11 @@ end
 -- Function to check for quest
 local function hasQuest()
     if questPath and questPath:FindFirstChild("QuestName") then
-        print("Quest found:", questPath.QuestName.ContentText)
-        return questPath.QuestName.ContentText == targetQuestName
+        local questName = questPath.QuestName.ContentText
+        print("Currently active quest:", questName)
+        return questName == targetQuestName
     else
-        print("Quest not found or incorrect path.")
+        print("No quest is currently active or path is incorrect.")
     end
     return false
 end
@@ -57,10 +58,10 @@ end
 local function takeQuest()
     print("Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
-    wait(1)  -- Changed delay to 1 second
+    wait(1)  -- 1-second delay
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
     
-    -- Fire the dialogue remote 3 times with 1-second delay
+    -- Fire the dialogue remote 6 times to reliably accept the quest
     for _ = 1, 6 do
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
         wait(1)
@@ -71,7 +72,7 @@ end
 local function completeQuest()
     print("Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
-    wait(1)  -- Changed delay to 1 second
+    wait(1)
     
     local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
     if prompt then
@@ -86,7 +87,7 @@ local function completeQuest()
     for i = 1, 2 do
         print("Firing dialogue step 1...")
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-        wait(1)  -- Changed delay to 1 second
+        wait(1)
     end
     
     print("Firing dialogue step 2...")
@@ -126,7 +127,7 @@ spawn(function()
         -- Step 2: Equip punch tool
         equipPunchTool()
 
-        -- Step 3: Check for the quest, take it if missing
+        -- Step 3: Check for the quest; only attempt to retake if no active quest is found
         if not hasQuest() then
             print("Quest not active. Attempting to take quest.")
             takeQuest()
