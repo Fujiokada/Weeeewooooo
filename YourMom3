@@ -1,0 +1,133 @@
+local player = game:GetService("Players").LocalPlayer
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
+local aiCharacters = workspace:WaitForChild("AiCharacters")
+local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+local targetQuestName = "Defeat Strong Souls"
+local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local teleportPosition = Vector3.new(232, 3, -703)
+local toggle = true
+local tools = {"Punch", "Star Sword", "Dagger", "Katana"}
+
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild("Venqtrix")
+    return character and character:FindFirstChild("Customizations") ~= nil
+end
+
+local function respawnCharacter()
+    spawnRemote:FireServer(1)
+end
+
+local function hasQuest()
+    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
+        local questName = questHolder.Quest.QuestName.ContentText
+        print("Currently active quest:", questName)
+        return questName == targetQuestName
+    else
+        print("No active quest found in QuestHolder.")
+    end
+    return false
+end
+
+local function isQuestCompleted()
+    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
+        print("Quest progress:", questProgressPath.Progress.ContentText)
+        return questProgressPath.Progress.ContentText == "3/3"
+    else
+        print("Quest progress path or progress not found.")
+    end
+    return false
+end
+
+local function equipTool()
+    for _, toolName in ipairs(tools) do
+        local tool = player.Backpack:FindFirstChild(toolName)
+        if tool then
+            tool.Parent = player.Character
+            print("Equipped tool:", toolName)
+            return
+        end
+    end
+    print("No available tool found in Backpack.")
+end
+
+local function takeQuest()
+    print("Attempting to take quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)
+    fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
+    for _ = 1, 6 do
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+        wait(1)
+    end
+end
+
+local function completeQuest()
+    print("Starting quest completion process...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)
+    local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
+    if prompt then
+        print("Firing proximity prompt to start quest completion dialogue.")
+        fireproximityprompt(prompt)
+    else
+        print("Proximity prompt not found!")
+        return
+    end
+    for i = 1, 2 do
+        print("Firing dialogue step 1...")
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+        wait(1)
+    end
+    print("Firing dialogue step 2...")
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    wait(1)
+    print("Firing dialogue step 3...")
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    print("Quest completion process finished.")
+end
+
+local function attackEnemy(enemy)
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+        equipTool()
+        wait(0.1)
+    end
+end
+
+spawn(function()
+    while toggle do
+        if not isCharacterAlive() then
+            respawnCharacter()
+            wait(2)
+        end
+        equipTool()
+        if not hasQuest() then
+            print("Quest not active. Attempting to take quest.")
+            takeQuest()
+            wait(2)
+        end
+        if hasQuest() and isQuestCompleted() then
+            print("Quest completed. Attempting to complete quest dialogue.")
+            completeQuest()
+            wait(2)
+        end
+        if hasQuest() then
+            for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                    for _, targetName in ipairs(targetEnemies) do
+                        if enemy.Name:find(targetName) then
+                            print("Attacking enemy:", enemy.Name)
+                            attackEnemy(enemy)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        wait(0.5)
+    end
+end)
