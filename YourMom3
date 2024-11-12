@@ -57,34 +57,26 @@ local function respawnCharacter()
 end
 
 local function hasQuest()
-    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
-        local questName = questHolder.Quest.QuestName.ContentText
-        sendNotification("Quest Status", "Currently active quest: " .. questName)
-        return questName == targetQuestName
+    local quest = questHolder:FindFirstChild("Quest")
+    if quest and quest:FindFirstChild("QuestName") then
+        return quest.QuestName.ContentText == targetQuestName
     end
-    sendNotification("Quest Status", "No active quest found in QuestHolder.")
     return false
 end
 
 local function isQuestCompleted()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
-        return questProgressPath.Progress.ContentText == "3/3"
-    end
-    sendNotification("Quest Progress", "Quest progress path or progress not found.")
-    return false
+    return questProgressPath and questProgressPath:FindFirstChild("Progress") and questProgressPath.Progress.ContentText == "3/3"
 end
 
 local function equipPunchTool()
     local tool = player.Backpack:FindFirstChild(punchToolName)
-    if tool and not player.Character:FindFirstChild(punchToolName) then
+    if tool then
         tool.Parent = player.Character
     end
 end
 
 local function takeQuest()
-    sendNotification("Quest", "Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
@@ -96,16 +88,12 @@ local function takeQuest()
 end
 
 local function completeQuest()
-    sendNotification("Quest", "Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     
     local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
     if prompt then
         fireproximityprompt(prompt)
-    else
-        sendNotification("Quest", "Proximity prompt not found!")
-        return
     end
     
     for i = 1, 2 do
@@ -115,14 +103,10 @@ local function completeQuest()
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     wait(1)
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-    
-    sendNotification("Quest", "Quest completion process finished.")
 end
 
 local function attackEnemy(enemy)
-    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-    local attemptCount = 0
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and attemptCount < 10 do
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
         
@@ -133,7 +117,6 @@ local function attackEnemy(enemy)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         
         wait(0.1)
-        attemptCount = attemptCount + 1
     end
     wait(0.5)
 end
@@ -149,34 +132,26 @@ spawn(function()
             equipPunchTool()
 
             if not hasQuest() then
-                sendNotification("Quest", "Quest not active. Attempting to take quest.")
                 takeQuest()
                 wait(2)
-            end
-
-            if hasQuest() and isQuestCompleted() then
-                sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+            elseif isQuestCompleted() then
                 completeQuest()
                 wait(2)
             end
 
-            if hasQuest() then
-                for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                    if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        for _, targetName in ipairs(targetEnemies) do
-                            if enemy.Name:find(targetName) then
-                                attackEnemy(enemy)
-                                if isQuestCompleted() then
-                                    sendNotification("Quest", "Quest completed after enemy defeat.")
-                                    completeQuest()
-                                    break
-                                end
+            for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                    for _, targetName in ipairs(targetEnemies) do
+                        if enemy.Name:find(targetName) then
+                            attackEnemy(enemy)
+                            if isQuestCompleted() then
+                                completeQuest()
+                                break
                             end
                         end
                     end
                 end
             end
-
             wait(0.5)
         else
             wait(0.1)
