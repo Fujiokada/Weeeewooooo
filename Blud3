@@ -114,7 +114,7 @@ local function activateSkills()
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
             end
 
-            wait(5)  -- Wait 3 seconds to allow the skill to activate fully
+            wait(3)  -- Wait 3 seconds to allow the skill to activate fully
             
             -- Skill was used, so unequip it
             unequipTool()
