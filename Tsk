@@ -141,18 +141,12 @@ end
 spawn(function()
     while true do
         if toggle then
-            if not hasQuest() then
-                sendNotification("Quest", "Quest not active. Attempting to take quest.")
-                takeQuest()
+            if not isCharacterAlive() then
+                respawnCharacter()
                 wait(2)
             end
 
             if hasQuest() then
-                if not isCharacterAlive() then
-                    respawnCharacter()
-                    wait(2)
-                end
-
                 equipPunchTool()
 
                 if isQuestCompleted() then
@@ -175,6 +169,10 @@ spawn(function()
                         end
                     end
                 end
+            else
+                sendNotification("Quest", "No active quest. Attempting to take quest.")
+                takeQuest()
+                wait(2)
             end
 
             wait(0.5)
