@@ -12,6 +12,7 @@ local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
+local isAttacking = false
 
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -22,8 +23,8 @@ local function sendNotification(title, text)
 end
 
 local function isCharacterAlive()
-    local character = workspace:FindFirstChild("Venqtrix")
-    return character and character:FindFirstChild("Customizations") ~= nil
+    local character = player.Character
+    return character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0
 end
 
 local function createFloatingPlatform()
@@ -57,19 +58,17 @@ local function respawnCharacter()
 end
 
 local function hasQuest()
-    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
-        local questName = questHolder.Quest.QuestName.ContentText
+    local quest = questHolder:FindFirstChild("Quest")
+    if quest and quest:FindFirstChild("QuestName") then
+        local questName = quest.QuestName.ContentText
         return questName == targetQuestName
     end
     return false
 end
 
 local function isQuestCompleted()
-    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        return questProgressPath.Progress.ContentText == "3/3"
-    end
-    return false
+    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    return questProgress and questProgress:FindFirstChild("Progress") and questProgress.Progress.ContentText == "3/3"
 end
 
 local function equipPunchTool()
@@ -80,109 +79,69 @@ local function equipPunchTool()
 end
 
 local function takeQuest()
-    sendNotification("Quest", "Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
-    
-    for _ = 1, 6 do
-        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-        wait(1)
-    end
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
 end
 
 local function completeQuest()
-    sendNotification("Quest", "Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
-    
     local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
     if prompt then
         fireproximityprompt(prompt)
-    else
-        sendNotification("Quest", "Proximity prompt not found!")
-        return
-    end
-    
-    for i = 1, 2 do
-        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-        wait(1)
     end
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-    wait(1)
-    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-    
-    sendNotification("Quest", "Quest completion process finished.")
 end
 
 local function attackEnemy(enemy)
-    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
+    equipPunchTool()
+    local humanoid = enemy:FindFirstChild("Humanoid")
+    while humanoid and humanoid.Health > 0 and isCharacterAlive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
         
-        equipPunchTool()
-        
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-        wait(0.15)
+        wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         
-        wait(0.15)
+        wait(0.1)
     end
 end
 
 spawn(function()
     while true do
-        if toggle then
+        if toggle and not isAttacking then
             if not isCharacterAlive() then
                 respawnCharacter()
-                wait(2)
+            elseif not hasQuest() then
+                takeQuest()
+            elseif isQuestCompleted() then
+                completeQuest()
+                wait(1)
             else
-                if not hasQuest() then
-                    takeQuest()
-                    wait(2)
-                elseif isQuestCompleted() then
-                    completeQuest()
-                    wait(2)
-                    if not hasQuest() then
-                        takeQuest()
-                        wait(2)
-                    end
-                else
-                    equipPunchTool()
-                    
-                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            for _, targetName in ipairs(targetEnemies) do
-                                if enemy.Name:find(targetName) then
-                                    attackEnemy(enemy)
-                                    if isQuestCompleted() then
-                                        completeQuest()
-                                        wait(2)
-                                        if not hasQuest() then
-                                            takeQuest()
-                                            wait(2)
-                                        end
-                                        break
-                                    end
-                                end
-                            end
+                equipPunchTool()
+                for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                    if table.find(targetEnemies, enemy.Name) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        isAttacking = true
+                        attackEnemy(enemy)
+                        isAttacking = false
+                        if isQuestCompleted() then
+                            completeQuest()
+                            break
                         end
                     end
                 end
             end
-
-            wait(0.5)
-        else
-            wait(0.1)
         end
+        wait(0.5)
     end
 end)
 
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.P then
         toggle = not toggle
-        local status = toggle and "enabled" or "disabled"
-        sendNotification("Autofarm", "Autofarm " .. status)
+        sendNotification("Autofarm", "Autofarm " .. (toggle and "enabled" or "disabled"))
     end
 end)
