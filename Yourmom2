@@ -36,7 +36,6 @@ local function updateHealthFlag()
     else
         HealthFlag = false
     end
-    return HealthFlag
 end
 
 -- Check if the character is alive by verifying the "Customizations" path
@@ -187,32 +186,33 @@ spawn(function()
             if not HealthFlag then
                 respawnCharacter()
                 wait(2)
-            elseif isCharacterAlive() then
-                equipPunchTool()
+                continue
+            end
 
-                if not hasQuest() then
-                    sendNotification("Quest", "Quest not active. Attempting to take quest.")
-                    takeQuest()
-                    wait(2)
-                end
+            equipPunchTool()
 
-                if hasQuest() and isQuestCompleted() then
-                    sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
-                    completeQuest()
-                    wait(2)
-                end
+            if not hasQuest() then
+                sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                takeQuest()
+                wait(2)
+            end
 
-                if hasQuest() then
-                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            for _, targetName in ipairs(targetEnemies) do
-                                if enemy.Name:find(targetName) then
-                                    attackEnemy(enemy)
-                                    if isQuestCompleted() then
-                                        sendNotification("Quest", "Quest completed after enemy defeat.")
-                                        completeQuest()
-                                        break
-                                    end
+            if hasQuest() and isQuestCompleted() then
+                sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                completeQuest()
+                wait(2)
+            end
+
+            if hasQuest() then
+                for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                    if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        for _, targetName in ipairs(targetEnemies) do
+                            if enemy.Name:find(targetName) then
+                                attackEnemy(enemy)
+                                if isQuestCompleted() then
+                                    sendNotification("Quest", "Quest completed after enemy defeat.")
+                                    completeQuest()
+                                    break
                                 end
                             end
                         end
