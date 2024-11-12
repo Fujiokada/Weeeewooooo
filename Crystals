@@ -1,0 +1,40 @@
+_G.Toggle = true
+
+local folderPath = workspace.Spawn["Blocktal Grounds"].Instances
+local webhookUrl = "https://discord.com/api/webhooks/1257886779583893585/R7T2QtxC2Q7fQh88awOCAsnAa4O1HUPJJxY-ozRFsFbaeIArfK-d2Ps4sUsHkXS2pzsA"
+
+local function notifyDiscord(itemName)
+    local data = {
+        content = "Collected " .. itemName
+    }
+
+    request({
+        Url = webhookUrl,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = game:GetService("HttpService"):JSONEncode(data)
+    })
+end
+
+local function fireClickDetectors()
+    for _, model in ipairs(folderPath:GetChildren()) do
+        local clickDetector = model:FindFirstChildOfClass("ClickDetector")
+        if clickDetector then
+            fireclickdetector(clickDetector)
+            notifyDiscord(model.Name)
+        end
+    end
+end
+
+spawn(function()
+    while true do
+        if _G.Toggle then
+            if #folderPath:GetChildren() > 0 then
+                fireClickDetectors()
+            else
+                folderPath.ChildAdded:Wait()
+            end
+        end
+        wait(0.5)
+    end
+end)
