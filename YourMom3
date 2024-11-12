@@ -27,6 +27,7 @@ local function sendNotification(title, text)
     })
 end
 
+-- Check if the character is alive by verifying the "Customizations" path
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     if character and character:FindFirstChild("Customizations") then
@@ -37,6 +38,7 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+-- Create the floating platform for the character
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -61,37 +63,45 @@ local function createFloatingPlatform()
     end
 end
 
+-- Respawn the character if dead
 local function respawnCharacter()
     if not isCharacterAliveFlag then
         sendNotification("Character Status", "Character is dead, respawning now...")
-        spawnRemote:FireServer(1) -- Trigger respawn
-        wait(2) -- Wait for the respawn process to complete
-        createFloatingPlatform()
-        isCharacterAliveFlag = true -- Mark as alive after respawn
+        spawnRemote:FireServer(1)  -- Trigger respawn with spawn remote
+        wait(2)  -- Wait for respawn
+        createFloatingPlatform()  -- Create floating platform after respawn
+        isCharacterAliveFlag = true  -- Mark the character as alive
         sendNotification("Character Status", "Character respawned successfully.")
     else
         sendNotification("Character Status", "Character is still alive, no respawn needed.")
     end
 end
 
-local function checkQuestStatus()
-    local quest = questHolder:FindFirstChild("Quest")
-    if quest and quest:FindFirstChild("QuestName") then
-        isQuestActive = quest.QuestName.ContentText == targetQuestName
+-- Check if a quest is active
+local function hasQuest()
+    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
+        local questName = questHolder.Quest.QuestName.ContentText
+        sendNotification("Quest Status", "Currently active quest: " .. questName)
+        return questName == targetQuestName
     else
-        isQuestActive = false
+        sendNotification("Quest Status", "No active quest found in QuestHolder.")
     end
+    return false
 end
 
-local function checkQuestCompletion()
+-- Check if the active quest is completed
+local function isQuestCompleted()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
     if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        isQuestCompletedFlag = questProgressPath.Progress.ContentText == "3/3"
+        sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
+        return questProgressPath.Progress.ContentText == "3/3"
     else
-        isQuestCompletedFlag = false
+        sendNotification("Quest Progress", "Quest progress path or progress not found.")
     end
+    return false
 end
 
+-- Equip the punch tool to the character
 local function equipPunchTool()
     local tool = player.Backpack:FindFirstChild(punchToolName)
     if tool then
@@ -99,26 +109,33 @@ local function equipPunchTool()
     end
 end
 
+-- Take the quest by interacting with the NPC
 local function takeQuest()
+    sendNotification("Quest", "Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
-    
+
     for _ = 1, 4 do
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
         wait(1)
     end
 end
 
+-- Complete the active quest by interacting with the NPC
 local function completeQuest()
+    sendNotification("Quest", "Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
-    
+
     local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
     if prompt then
         fireproximityprompt(prompt)
+    else
+        sendNotification("Quest", "Proximity prompt not found!")
+        return
     end
-    
+
     for i = 1, 2 do
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
         wait(1)
@@ -126,26 +143,29 @@ local function completeQuest()
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     wait(1)
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+
+    sendNotification("Quest", "Quest completion process finished.")
 end
 
+-- Attack the given enemy
 local function attackEnemy(enemy)
-    isTargetingEnemy = true
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAliveFlag do
+    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
-        
+
         equipPunchTool()
-        
+
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
-        
+
         wait(0.1)
     end
     wait(0.5)
-    isTargetingEnemy = false
 end
 
+-- Main loop
 spawn(function()
     while true do
         if toggle then
@@ -156,37 +176,27 @@ spawn(function()
 
             equipPunchTool()
 
-            if not isQuestActive then
-                checkQuestStatus()
-                if not isQuestActive then
-                    takeQuest()
-                    wait(2)
-                    checkQuestStatus()
-                end
+            if not hasQuest() then
+                sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                takeQuest()
+                wait(2)
             end
 
-            if isQuestActive and not isQuestCompletedFlag then
-                checkQuestCompletion()
-            end
-
-            if isQuestCompletedFlag then
+            if hasQuest() and isQuestCompleted() then
+                sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
                 completeQuest()
                 wait(2)
-                isQuestCompletedFlag = false
-                isQuestActive = false
             end
 
-            if isQuestActive and not isQuestCompletedFlag then
+            if hasQuest() then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                    if isCharacterAliveFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and not isTargetingEnemy then
+                    if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                         for _, targetName in ipairs(targetEnemies) do
                             if enemy.Name:find(targetName) then
                                 attackEnemy(enemy)
-                                if isQuestCompletedFlag then
+                                if isQuestCompleted() then
+                                    sendNotification("Quest", "Quest completed after enemy defeat.")
                                     completeQuest()
-                                    wait(2)
-                                    isQuestCompletedFlag = false
-                                    isQuestActive = false
                                     break
                                 end
                             end
@@ -194,6 +204,7 @@ spawn(function()
                     end
                 end
             end
+
             wait(0.5)
         else
             wait(0.1)
@@ -201,6 +212,7 @@ spawn(function()
     end
 end)
 
+-- Toggle autofarm with the "P" key
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.P then
         toggle = not toggle
