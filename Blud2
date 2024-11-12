@@ -9,13 +9,12 @@ local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Katana"
 local skillNames = {"Lion's Slash", "Raijin Slash"}
 local teleportPosition = Vector3.new(232, 3, -703)
-local questNPCPosition = Vector3.new(232, 3, -703) -- Adjust to exact position of the quest NPC
+local questNPCPosition = Vector3.new(232, 3, -703)
 local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
 
-local lastSkillUse = 0
 local isCharacterAliveFlag = false
 local HealthFlag = true
 
@@ -28,8 +27,8 @@ local function sendNotification(title, text)
 end
 
 local function isCharacterAlive()
-    local character = workspace:FindFirstChild(player.Name)
-    isCharacterAliveFlag = character and character:FindFirstChild("HumanoidRootPart") ~= nil
+    local character = workspace:FindFirstChild("Venqtrix")
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
     return isCharacterAliveFlag
 end
 
@@ -98,20 +97,13 @@ local function unequipTool()
     end
 end
 
-local function activateSkills(enemy)
+local function activateSkills()
+    unequipTool() -- Unequip katana before using skills
     for _, skillName in ipairs(skillNames) do
         equipTool(skillName)
 
-        for i = 1, 10 do
-            -- Check if character is alive and enemy is still valid before teleporting
-            if isCharacterAlive() and enemy and enemy:FindFirstChild("HumanoidRootPart") then
-                local enemyPos = enemy.HumanoidRootPart.Position - enemy.HumanoidRootPart.CFrame.LookVector * 5
-                player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.HumanoidRootPart.Position))
-            else
-                sendNotification("Teleport Error", "Unable to teleport due to invalid character or enemy.")
-                break
-            end
-
+        for _ = 1, 10 do
+            if not isCharacterAlive() then return end
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
@@ -120,7 +112,6 @@ local function activateSkills(enemy)
         wait(2)
         unequipTool()
     end
-    lastSkillUse = tick()
 end
 
 local function takeQuest()
@@ -186,17 +177,11 @@ local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
-        -- Teleport behind the enemy if alive
-        if isCharacterAlive() and enemy:FindFirstChild("HumanoidRootPart") then
-            local enemyPos = enemy.HumanoidRootPart.Position - enemy.HumanoidRootPart.CFrame.LookVector * 5
-            player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.HumanoidRootPart.Position))
-        else
-            sendNotification("Teleport Error", "Unable to teleport due to invalid character or enemy.")
-            break
-        end
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
         if tick() - lastSkillUse >= 20 then
-            activateSkills(enemy) -- Pass the enemy to teleport during skill usage
+            activateSkills()
         end
 
         equipTool(punchToolName)
@@ -234,18 +219,26 @@ spawn(function()
 
                 if hasQuest() then
                     for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if table.find(targetEnemies, enemy.Name) then
-                            attackEnemy(enemy)
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            for _, targetName in ipairs(targetEnemies) do
+                                if enemy.Name:find(targetName) then
+                                    attackEnemy(enemy)
+                                    if isQuestCompleted() then
+                                        completeQuest()
+                                        takeQuest()
+                                        break
+                                    end
+                                end
+                            end
                         end
                     end
                 end
             end
         end
-        wait(1)
+        wait(0.1)
     end
 end)
 
--- Toggle for enabling/disabling the autofarm
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.P then
         toggle = not toggle
@@ -253,5 +246,3 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
         sendNotification("Autofarm", "Autofarm " .. status)
     end
 end)
-
-sendNotification("Script Status", "Script loaded successfully.")
