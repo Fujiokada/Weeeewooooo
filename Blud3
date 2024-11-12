@@ -100,19 +100,24 @@ end
 
 local function activateSkills()
     unequipTool()  -- Make sure the katana is unequipped first
+    
     for _, skillName in ipairs(skillNames) do
-        equipTool(skillName)
+        local skillTool = player.Backpack:FindFirstChild(skillName)
+        if skillTool and not skillTool.Name:match("%d") then
+            -- Equip and use skill if there’s no number (cooldown) in the name
+            equipTool(skillName)
+            
+            for _ = 1, 10 do
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+                wait(0.1)
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+            end
 
-        for _ = 1, 10 do
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-            wait(0.1)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+            -- Skill was used, so unequip it
+            unequipTool()
         end
-
-        wait(2)
-        unequipTool()
     end
-    lastSkillUse = tick()
+    lastSkillUse = tick()  -- Update the last use time if skill was successfully used
 end
 
 local function takeQuest()
@@ -181,10 +186,8 @@ local function attackEnemy(enemy)
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Use skills first if 20 seconds have passed
-        if tick() - lastSkillUse >= 15 then
-            activateSkills()
-        end
+        -- Use skills first if available (no cooldown on name)
+        activateSkills()
 
         -- Then equip katana for standard attack
         equipTool(punchToolName)
@@ -244,9 +247,9 @@ end)
 
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent then
-        if input.KeyCode == Enum.KeyCode.F1 then
+        if input.KeyCode == Enum.KeyCode.T then
             toggle = not toggle
-            sendNotification("Script", toggle and "Script started." or "Script stopped.")
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
         end
     end
 end)
