@@ -54,6 +54,7 @@ local function createFloatingPlatform()
             else
                 Float:Destroy()
             end
+            wait(0.2) -- Reduced frequency of updates
         end
 
         game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
@@ -148,17 +149,19 @@ local function attackEnemy(enemy)
         equipPunchTool()
 
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-        wait(0.2)  -- Increased wait to reduce frequency
+        wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
 
-        wait(0.2)  -- Adjusted to slow down actions
+        wait(0.2) -- Reduced frequency of actions within attack loop
     end
-    wait(1)  -- Additional wait to further throttle loop frequency
+    wait(0.5)
 end
 
 spawn(function()
     while true do
         if toggle then
+            wait(1) -- Increased wait time between cycles to reduce load
+            
             if not isCharacterAlive() then
                 HealthFlag = false
                 respawnCharacter()
@@ -173,14 +176,13 @@ spawn(function()
                 if not hasQuest() then
                     sendNotification("Quest", "Quest not active. Attempting to take quest.")
                     takeQuest()
-                    wait(3)  -- Increased wait time
+                    wait(3) -- Increased wait time here as well
                 end
 
                 if hasQuest() and isQuestCompleted() then
                     sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
                     completeQuest()
-                    wait(3)  -- Increased wait time
-                    sendNotification("Quest", "Retaking quest after completion.")
+                    wait(3)
                     takeQuest()
                     wait(3)
                 end
@@ -191,10 +193,9 @@ spawn(function()
                             for _, targetName in ipairs(targetEnemies) do
                                 if enemy.Name:find(targetName) then
                                     attackEnemy(enemy)
+                                    wait(0.5) -- Adding wait time to reduce intensive operations
                                     if isQuestCompleted() then
-                                        sendNotification("Quest", "Quest completed after enemy defeat.")
                                         completeQuest()
-                                        sendNotification("Quest", "Retaking quest after enemy defeat.")
                                         takeQuest()
                                         break
                                     end
@@ -204,10 +205,8 @@ spawn(function()
                     end
                 end
             end
-
-            wait(1)  -- Reduced frequency of main loop
         else
-            wait(0.5)
+            wait(0.1)
         end
     end
 end)
