@@ -6,7 +6,7 @@ local aiCharacters = workspace:WaitForChild("AiCharacters")
 local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
-local punchToolName = "Katana"
+local punchToolName = "Star Sword"
 local skillNames = {"Lion's Slash", "Raijin Slash"}
 local teleportPosition = Vector3.new(232, 3, -703)
 local autoClickPosition = Vector2.new(903, 478)
@@ -32,12 +32,39 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        local FloatValue = -3.1
+
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+            wait(0.2)
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        sendNotification("Platform", "Floating platform created under character.")
+    end
+end
+
 local function respawnCharacter()
     if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning...")
-        wait(1)
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
         spawnRemote:FireServer(1)
-        wait(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
     end
 end
 
@@ -74,34 +101,30 @@ local function activateSkills()
     for _, skillName in ipairs(skillNames) do
         equipTool(skillName)
 
-        -- Autoclick to activate the skill
         for _ = 1, 10 do
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         end
 
-        wait(3)  -- Wait for the skill to activate
+        wait(2)  -- Skill activation delay
 
-        unequipTool()  -- Unequip before moving to the next skill
+        unequipTool()
     end
-    lastSkillUse = tick()  -- Update cooldown timer
+    lastSkillUse = tick()
 end
 
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
-        -- Teleport behind the enemy frequently
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Activate skills if the cooldown has expired
         if tick() - lastSkillUse >= 20 then
             activateSkills()
         end
 
-        -- Switch to the punch tool and autoclick if not using skills
         equipTool(punchToolName)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
