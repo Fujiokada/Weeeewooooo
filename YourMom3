@@ -17,7 +17,7 @@ local toggle = false
 local isQuestActive = false
 local isQuestCompletedFlag = false
 local isTargetingEnemy = false
-local isCharacterAliveFlag = false
+local isCharacterAliveFlag = true -- Start with true since character is alive initially
 
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -27,9 +27,14 @@ local function sendNotification(title, text)
     })
 end
 
+-- Improved isCharacterAlive check
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
-    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
+    if character and character:FindFirstChild("Customizations") then
+        isCharacterAliveFlag = true
+    else
+        isCharacterAliveFlag = false
+    end
     return isCharacterAliveFlag
 end
 
@@ -59,10 +64,10 @@ end
 
 local function respawnCharacter()
     if not isCharacterAliveFlag then
-        spawnRemote:FireServer(1)
-        wait(2)
-        createFloatingPlatform()
-        isCharacterAliveFlag = true
+        spawnRemote:FireServer(1)  -- Call the respawn remote
+        wait(2)  -- Wait for respawn to complete
+        createFloatingPlatform()  -- Recreate the platform after respawn
+        isCharacterAliveFlag = true  -- Mark the character as alive
     end
 end
 
@@ -141,13 +146,16 @@ end
 spawn(function()
     while true do
         if toggle then
+            -- Check if the character is alive or dead
             if not isCharacterAlive() then
+                sendNotification("Status", "Character is dead, respawning...")
                 respawnCharacter()
-                wait(2)
+                wait(2)  -- Wait before continuing to ensure respawn has completed
             end
 
             equipPunchTool()
 
+            -- Quest handling
             if not isQuestActive then
                 checkQuestStatus()
                 if not isQuestActive then
@@ -168,6 +176,7 @@ spawn(function()
                 isQuestActive = false
             end
 
+            -- Enemy targeting and combat
             if isQuestActive and not isQuestCompletedFlag then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
                     if isCharacterAliveFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and not isTargetingEnemy then
