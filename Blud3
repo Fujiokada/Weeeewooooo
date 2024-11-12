@@ -107,18 +107,22 @@ local function activateSkills()
             -- Equip and use skill if there’s no number (cooldown) in the name
             equipTool(skillName)
             
+            -- Click the auto-click position to activate the skill
             for _ = 1, 10 do
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
                 wait(0.1)
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
             end
 
+            wait(3)  -- Wait 3 seconds to allow the skill to activate fully
+            
             -- Skill was used, so unequip it
             unequipTool()
         end
     end
     lastSkillUse = tick()  -- Update the last use time if skill was successfully used
 end
+
 
 local function takeQuest()
     sendNotification("Quest", "Attempting to retake quest...")
