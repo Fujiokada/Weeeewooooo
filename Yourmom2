@@ -28,17 +28,6 @@ local function sendNotification(title, text)
     })
 end
 
--- Check if the character is alive based on health
-local function checkCharacterHealth()
-    local character = player.Character
-    if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
-        HealthFlag = true
-    else
-        HealthFlag = false
-    end
-    return HealthFlag
-end
-
 -- Check if the character is alive by verifying the "Customizations" path
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
@@ -77,13 +66,11 @@ end
 
 -- Respawn the character if dead
 local function respawnCharacter()
-    if not isCharacterAliveFlag or not HealthFlag then
+    if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning now...")
         spawnRemote:FireServer(1)  -- Trigger respawn with spawn remote
         wait(2)  -- Wait for respawn
         createFloatingPlatform()  -- Create floating platform after respawn
-        isCharacterAliveFlag = true  -- Mark the character as alive
-        HealthFlag = true  -- Reset HealthFlag
         sendNotification("Character Status", "Character respawned successfully.")
     else
         sendNotification("Character Status", "Character is still alive, no respawn needed.")
@@ -163,7 +150,7 @@ end
 -- Attack the given enemy
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and checkCharacterHealth() do
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
@@ -182,12 +169,15 @@ end
 spawn(function()
     while true do
         if toggle then
-            if not isCharacterAlive() or not checkCharacterHealth() then
+            if not isCharacterAlive() then
+                HealthFlag = false
                 respawnCharacter()
                 wait(2)
+            else
+                HealthFlag = true
             end
 
-            if HealthFlag and isCharacterAlive() then
+            if HealthFlag then
                 equipPunchTool()
 
                 if not hasQuest() then
@@ -204,7 +194,7 @@ spawn(function()
 
                 if hasQuest() then
                     for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if isCharacterAlive() and checkCharacterHealth() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                             for _, targetName in ipairs(targetEnemies) do
                                 if enemy.Name:find(targetName) then
                                     attackEnemy(enemy)
