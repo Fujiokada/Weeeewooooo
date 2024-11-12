@@ -14,7 +14,6 @@ local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
 
-local skillFlags = {["Lion's Slash"] = false, ["Raijin Slash"] = false}
 local lastSkillUse = 0
 local isCharacterAliveFlag = false
 local HealthFlag = true
@@ -23,7 +22,7 @@ local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
         Title = title;
         Text = text;
-        Duration = 2;  -- Reduced duration for faster response
+        Duration = 2;
     })
 end
 
@@ -74,29 +73,39 @@ end
 local function activateSkills()
     for _, skillName in ipairs(skillNames) do
         equipTool(skillName)
+
+        -- Autoclick to activate the skill
         for _ = 1, 10 do
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         end
-        unequipTool()
-        wait(0.1)
+
+        wait(3)  -- Wait for the skill to activate
+
+        unequipTool()  -- Unequip before moving to the next skill
     end
+    lastSkillUse = tick()  -- Update cooldown timer
 end
 
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
+        -- Teleport behind the enemy frequently
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        activateSkills()  -- Looping skills
-        equipTool(punchToolName)
+        -- Activate skills if the cooldown has expired
+        if tick() - lastSkillUse >= 20 then
+            activateSkills()
+        end
 
+        -- Switch to the punch tool and autoclick if not using skills
+        equipTool(punchToolName)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
-
         wait(0.1)
     end
 end
