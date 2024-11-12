@@ -10,15 +10,8 @@ local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Star Sword"
 local teleportPosition = Vector3.new(232, 3, -703)
 local toggle = true  -- Toggle to start/stop the autofarm
-
--- Function to send a notification in-game
-local function sendNotification(title, text, duration)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = title;
-        Text = text;
-        Duration = duration or 5; -- Default duration is 5 seconds
-    })
-end
+local autoClickPosition = Vector2.new(903, 478)
+local floatName = "FloatingPlatform"
 
 -- Function to check if character is alive
 local function isCharacterAlive()
@@ -26,16 +19,59 @@ local function isCharacterAlive()
     return character and character:FindFirstChild("Customizations") ~= nil
 end
 
--- Function to respawn character
-local function respawnCharacter()
-    spawnRemote:FireServer(1)
+-- Function to create a floating platform under player
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        local FloatValue = -3.1
+
+        -- Update the platform position under character
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "Platform Created",
+            Text = "Floating platform created under character.",
+            Duration = 2
+        })
+    end
 end
 
--- Enhanced function to check for quest
+-- Function to respawn character and create platform under player
+local function respawnCharacter()
+    spawnRemote:FireServer(1)
+    wait(2)  -- Wait a moment for respawn
+    createFloatingPlatform()
+end
+
+-- Function to check if the quest is active
 local function hasQuest()
     if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
         local questName = questHolder.Quest.QuestName.ContentText
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "Quest Active",
+            Text = "Currently active quest: " .. questName,
+            Duration = 2
+        })
         return questName == targetQuestName
+    else
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "No Active Quest",
+            Text = "No active quest found in QuestHolder.",
+            Duration = 2
+        })
     end
     return false
 end
@@ -44,7 +80,19 @@ end
 local function isQuestCompleted()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
     if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        return questProgressPath.Progress.ContentText == "3/3"
+        local progressText = questProgressPath.Progress.ContentText
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "Quest Progress",
+            Text = "Quest progress: " .. progressText,
+            Duration = 2
+        })
+        return progressText == "3/3"
+    else
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "Progress Not Found",
+            Text = "Quest progress path or progress not found.",
+            Duration = 2
+        })
     end
     return false
 end
@@ -59,7 +107,11 @@ end
 
 -- Function to take the Strong Soul quest and initiate dialogue
 local function takeQuest()
-    sendNotification("Quest Taken", "Attempting to take quest...", 5)
+    game:GetService("CoreGui"):SetCore("SendNotification", {
+        Title = "Taking Quest",
+        Text = "Attempting to take quest...",
+        Duration = 2
+    })
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)  -- 1-second delay
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
@@ -73,42 +125,63 @@ end
 
 -- Function to complete the quest with dialogue sequence
 local function completeQuest()
-    sendNotification("Quest Completed", "Quest completed. Attempting to complete quest dialogue.", 5)
+    game:GetService("CoreGui"):SetCore("SendNotification", {
+        Title = "Completing Quest",
+        Text = "Starting quest completion process...",
+        Duration = 2
+    })
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     
     local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
     if prompt then
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "Quest Dialogue",
+            Text = "Firing proximity prompt to start quest completion dialogue.",
+            Duration = 2
+        })
         fireproximityprompt(prompt)
     else
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "No Prompt",
+            Text = "Proximity prompt not found!",
+            Duration = 2
+        })
         return
     end
     
     -- Fire the dialogue remotes in sequence with retries for reliability
     for i = 1, 2 do
+        game:GetService("CoreGui"):SetCore("SendNotification", {
+            Title = "Quest Dialogue",
+            Text = "Firing dialogue step 1...",
+            Duration = 2
+        })
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
         wait(1)
     end
     
+    game:GetService("CoreGui"):SetCore("SendNotification", {
+        Title = "Quest Dialogue",
+        Text = "Firing dialogue step 2...",
+        Duration = 2
+    })
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     wait(1)
+    
+    game:GetService("CoreGui"):SetCore("SendNotification", {
+        Title = "Quest Dialogue",
+        Text = "Firing dialogue step 3...",
+        Duration = 2
+    })
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    
+    game:GetService("CoreGui"):SetCore("SendNotification", {
+        Title = "Quest Completed",
+        Text = "Quest completion process finished.",
+        Duration = 2
+    })
 end
-
--- Function to check and notify for quest progress changes
-local function checkQuestProgress()
-    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        local currentProgress = questProgressPath.Progress.ContentText
-        if currentProgress ~= lastKnownProgress then
-            sendNotification("Quest Progress", "Quest progress: " .. currentProgress, 5)
-            lastKnownProgress = currentProgress  -- Update the last known progress
-        end
-    end
-end
-
--- Variable to store the last known progress to detect changes
-local lastKnownProgress = ""
 
 -- Function to teleport behind and attack the enemy in a loop
 local function attackEnemy(enemy)
@@ -119,6 +192,11 @@ local function attackEnemy(enemy)
         
         -- Equip Punch tool
         equipPunchTool()
+        
+        -- Auto-clicking functionality
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         
         -- Small delay to simulate attacking and give time for re-teleport
         wait(0.1)
@@ -139,13 +217,22 @@ spawn(function()
 
         -- Step 3: Check for the quest; only attempt to retake if no active quest is found
         if not hasQuest() then
-            sendNotification("Quest Not Active", "Quest not active. Attempting to take quest.", 5)
+            game:GetService("CoreGui"):SetCore("SendNotification", {
+                Title = "Quest Not Active",
+                Text = "Quest not active. Attempting to take quest.",
+                Duration = 2
+            })
             takeQuest()
             wait(2)  -- Small wait after taking the quest
         end
 
         -- Step 4: Check if quest is completed
         if hasQuest() and isQuestCompleted() then
+            game:GetService("CoreGui"):SetCore("SendNotification", {
+                Title = "Quest Completed",
+                Text = "Quest completed. Attempting to complete quest dialogue.",
+                Duration = 2
+            })
             completeQuest()
             wait(2)  -- Wait after completing quest to reset
         end
@@ -157,7 +244,11 @@ spawn(function()
                     -- Check if enemy is a quest target
                     for _, targetName in ipairs(targetEnemies) do
                         if enemy.Name:find(targetName) then
-                            sendNotification("Attacking Enemy", "Attacking enemy: " .. enemy.Name, 5)
+                            game:GetService("CoreGui"):SetCore("SendNotification", {
+                                Title = "Attacking Enemy",
+                                Text = "Attacking enemy: " .. enemy.Name,
+                                Duration = 2
+                            })
                             attackEnemy(enemy)
                             break  -- Move to the next enemy once this one is dead
                         end
@@ -165,9 +256,6 @@ spawn(function()
                 end
             end
         end
-
-        -- Step 6: Check and notify for quest progress changes
-        checkQuestProgress()
 
         wait(0.5)  -- Delay before restarting the loop
     end
