@@ -12,6 +12,16 @@ local teleportPosition = Vector3.new(232, 3, -703)
 local toggle = true  -- Toggle to start/stop the autofarm
 local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
+local StarterGui = game:GetService("StarterGui")
+
+-- Function to send notifications instead of print
+local function sendNotification(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 5;
+    })
+end
 
 -- Function to check if character is alive
 local function isCharacterAlive()
@@ -41,7 +51,7 @@ local function createFloatingPlatform()
         end
 
         game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Platform", Text = "Floating platform created under character."})
+        sendNotification("Platform", "Floating platform created under character.")
     end
 end
 
@@ -56,10 +66,10 @@ end
 local function hasQuest()
     if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
         local questName = questHolder.Quest.QuestName.ContentText
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Status", Text = "Currently active quest: " .. questName})
+        sendNotification("Quest Status", "Currently active quest: " .. questName)
         return questName == targetQuestName
     else
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Status", Text = "No active quest found in QuestHolder."})
+        sendNotification("Quest Status", "No active quest found in QuestHolder.")
     end
     return false
 end
@@ -68,10 +78,10 @@ end
 local function isQuestCompleted()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
     if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Progress", Text = "Progress: " .. questProgressPath.Progress.ContentText})
+        sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
         return questProgressPath.Progress.ContentText == "3/3"
     else
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Progress", Text = "Quest progress path or progress not found."})
+        sendNotification("Quest Progress", "Quest progress path or progress not found.")
     end
     return false
 end
@@ -86,7 +96,7 @@ end
 
 -- Function to take the Strong Soul quest and initiate dialogue
 local function takeQuest()
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Attempting to take quest..."})
+    sendNotification("Quest", "Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)  -- 1-second delay
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
@@ -100,52 +110,43 @@ end
 
 -- Function to complete the quest with dialogue sequence
 local function completeQuest()
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Starting quest completion process..."})
+    sendNotification("Quest", "Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     
     local prompt = workspace.NPCs.Agor:FindFirstChild("ProximityPrompt")
     if prompt then
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Firing proximity prompt to start quest completion dialogue."})
         fireproximityprompt(prompt)
     else
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Proximity prompt not found!"})
+        sendNotification("Quest", "Proximity prompt not found!")
         return
     end
     
     -- Fire the dialogue remotes in sequence with retries for reliability
     for i = 1, 2 do
-        game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Firing dialogue step 1..."})
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
         wait(1)
     end
-    
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Firing dialogue step 2..."})
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     wait(1)
-    
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Firing dialogue step 3..."})
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Quest completion process finished."})
+    sendNotification("Quest", "Quest completion process finished.")
 end
 
 -- Function to teleport behind and attack the enemy in a loop
 local function attackEnemy(enemy)
+    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
-        -- Position 5 studs behind the enemy and face it
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
         
-        -- Equip Punch tool
         equipPunchTool()
         
-        -- Auto-clicking functionality
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         
-        -- Small delay to simulate attacking and give time for re-teleport
         wait(0.1)
     end
 end
@@ -153,45 +154,38 @@ end
 -- Main loop
 spawn(function()
     while toggle do
-        -- Step 1: Ensure character is alive
         if not isCharacterAlive() then
             respawnCharacter()
-            wait(2)  -- Wait a moment for respawn
+            wait(2)
         end
 
-        -- Step 2: Equip punch tool
         equipPunchTool()
 
-        -- Step 3: Check for the quest; only attempt to retake if no active quest is found
         if not hasQuest() then
-            game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Status", Text = "Quest not active. Attempting to take quest."})
+            sendNotification("Quest", "Quest not active. Attempting to take quest.")
             takeQuest()
-            wait(2)  -- Small wait after taking the quest
+            wait(2)
         end
 
-        -- Step 4: Check if quest is completed
         if hasQuest() and isQuestCompleted() then
-            game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Status", Text = "Quest completed. Attempting to complete quest dialogue."})
+            sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
             completeQuest()
-            wait(2)  -- Wait after completing quest to reset
+            wait(2)
         end
 
-        -- Step 5: Loop through enemies and attack quest targets only if quest is active
         if hasQuest() then
             for _, enemy in ipairs(aiCharacters:GetChildren()) do
                 if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                    -- Check if enemy is a quest target
                     for _, targetName in ipairs(targetEnemies) do
                         if enemy.Name:find(targetName) then
-                            game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Quest Action", Text = "Attacking enemy: " .. enemy.Name})
                             attackEnemy(enemy)
-                            break  -- Move to the next enemy once this one is dead
+                            break
                         end
                     end
                 end
             end
         end
 
-        wait(0.5)  -- Delay before restarting the loop
+        wait(0.5)
     end
 end)
