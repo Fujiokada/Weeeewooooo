@@ -7,14 +7,14 @@ local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Katana"
-local skillNames = {"Lion's Slash", "Raijin Slash", "Nadeshiko Field"}
+local skillNames = {"Lion's Slash", "Raijin Slash"}
 local teleportPosition = Vector3.new(232, 3, -703)
 local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
 
-local skillFlags = {["Lion's Slash"] = false, ["Raijin Slash"] = false, ["Nadeshiko Field"] = false}
+local skillFlags = {["Lion's Slash"] = false, ["Raijin Slash"] = false}
 local lastSkillUse = 0
 local isCharacterAliveFlag = false
 local HealthFlag = true
@@ -23,78 +23,36 @@ local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
         Title = title;
         Text = text;
-        Duration = 5;
+        Duration = 2;  -- Reduced duration for faster response
     })
 end
 
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
-    if character and character:FindFirstChild("Customizations") then
-        isCharacterAliveFlag = true
-    else
-        isCharacterAliveFlag = false
-    end
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
     return isCharacterAliveFlag
-end
-
-local function createFloatingPlatform()
-    local character = player.Character
-    if character and not character:FindFirstChild(floatName) then
-        local Float = Instance.new('Part')
-        Float.Name = floatName
-        Float.Parent = character
-        Float.Transparency = 1
-        Float.Size = Vector3.new(2, 0.2, 1.5)
-        Float.Anchored = true
-        local FloatValue = -3.1
-
-        local function FloatPadLoop()
-            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
-                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
-            else
-                Float:Destroy()
-            end
-            wait(0.2)
-        end
-
-        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
-        sendNotification("Platform", "Floating platform created under character.")
-    end
 end
 
 local function respawnCharacter()
     if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
+        sendNotification("Character Status", "Character is dead, respawning...")
+        wait(1)
         spawnRemote:FireServer(1)
-        wait(2)
-        createFloatingPlatform()
-        sendNotification("Character Status", "Character respawned successfully.")
-    else
-        sendNotification("Character Status", "Character is still alive, no respawn needed.")
+        wait(1)
     end
 end
 
 local function hasQuest()
     if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
         local questName = questHolder.Quest.QuestName.ContentText
-        sendNotification("Quest Status", "Currently active quest: " .. questName)
         return questName == targetQuestName
-    else
-        sendNotification("Quest Status", "No active quest found in QuestHolder.")
     end
     return false
 end
 
 local function isQuestCompleted()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
-        return questProgressPath.Progress.ContentText == "3/3"
-    else
-        sendNotification("Quest Progress", "Quest progress path or progress not found.")
-    end
-    return false
+    return questProgressPath and questProgressPath.Progress.ContentText == "3/3"
 end
 
 local function equipTool(toolName)
@@ -113,38 +71,16 @@ local function unequipTool()
     end
 end
 
-local function activateSkill(skillName)
-    equipTool(skillName)
-    wait(1)
-
-    if skillName == "Nadeshiko Field" then
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-        wait(10)  -- Hold Nadeshiko Field for 10 seconds
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
-    else
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-        wait(0.1)
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
-    end
-
-    unequipTool()
-    wait(1)
-end
-
-local function useSkills()
-    local currentTime = tick()
-    if currentTime - lastSkillUse >= 15 then
-        lastSkillUse = currentTime
-
-        for _, skillName in ipairs(skillNames) do
-            if not skillFlags[skillName] then
-                activateSkill(skillName)
-                skillFlags[skillName] = true
-            end
+local function activateSkills()
+    for _, skillName in ipairs(skillNames) do
+        equipTool(skillName)
+        for _ = 1, 10 do
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         end
-
-        wait(25)  -- Cooldown for Nadeshiko Field
-        skillFlags = {["Lion's Slash"] = false, ["Raijin Slash"] = false, ["Nadeshiko Field"] = false}
+        unequipTool()
+        wait(0.1)
     end
 end
 
@@ -154,46 +90,40 @@ local function attackEnemy(enemy)
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        useSkills()
+        activateSkills()  -- Looping skills
         equipTool(punchToolName)
 
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
 
-        wait(0.2)
+        wait(0.1)
     end
-    wait(0.5)
 end
 
 spawn(function()
     while true do
         if toggle then
-            wait(1)
-
             if not isCharacterAlive() then
                 HealthFlag = false
                 respawnCharacter()
-                wait(2)
             else
                 HealthFlag = true
             end
 
             if HealthFlag then
-                equipTool(punchToolName)
-
                 if not hasQuest() then
-                    sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                    sendNotification("Quest", "No active quest, attempting to start quest.")
                     takeQuest()
-                    wait(3)
+                    wait(1)
                 end
 
                 if hasQuest() and isQuestCompleted() then
-                    sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                    sendNotification("Quest", "Quest completed, turning in.")
                     completeQuest()
-                    wait(3)
+                    wait(1)
                     takeQuest()
-                    wait(3)
+                    wait(1)
                 end
 
                 if hasQuest() then
@@ -202,7 +132,6 @@ spawn(function()
                             for _, targetName in ipairs(targetEnemies) do
                                 if enemy.Name:find(targetName) then
                                     attackEnemy(enemy)
-                                    wait(0.5)
                                     if isQuestCompleted() then
                                         completeQuest()
                                         takeQuest()
@@ -214,9 +143,8 @@ spawn(function()
                     end
                 end
             end
-        else
-            wait(0.1)
         end
+        wait(0.1)
     end
 end)
 
