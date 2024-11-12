@@ -82,7 +82,11 @@ local function takeQuest()
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
-    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    
+    for _ = 1, 4 do
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+        wait(1)
+    end
 end
 
 local function completeQuest()
@@ -92,6 +96,13 @@ local function completeQuest()
     if prompt then
         fireproximityprompt(prompt)
     end
+    
+    for i = 1, 2 do
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+        wait(1)
+    end
+    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    wait(1)
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
 end
 
