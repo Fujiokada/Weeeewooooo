@@ -1,0 +1,144 @@
+local player = game:GetService("Players").LocalPlayer
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
+local aiCharacters = workspace:WaitForChild("AiCharacters")
+local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+local targetQuestName = "Defeat Strong Souls"
+local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local punchToolName = "Star Sword"
+local skills = {"Lion's Slash", "Raijin Slash", "Nadeshiko Field"} -- Skill names in the backpack
+local teleportPosition = Vector3.new(232, 3, -703)
+local autoClickPosition = Vector2.new(903, 478)
+local floatName = "FloatingPlatform"
+local StarterGui = game:GetService("StarterGui")
+local toggle = false
+local skillCooldownTime = 15
+local lastSkillUse = 0
+
+-- Flags for various states
+local isQuestActive = false
+local isQuestCompletedFlag = false
+local isTargetingEnemy = false
+local isCharacterAliveFlag = false
+local HealthFlag = true
+
+local function sendNotification(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 5;
+    })
+end
+
+-- Other existing functions (isCharacterAlive, createFloatingPlatform, respawnCharacter, etc.) remain unchanged
+
+-- Function to equip a tool from the backpack
+local function equipTool(toolName)
+    local tool = player.Backpack:FindFirstChild(toolName)
+    if tool then
+        tool.Parent = player.Character
+    end
+end
+
+-- Function to perform the main attack (punch tool)
+local function performMainAttack()
+    equipTool(punchToolName)
+    game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+    wait(0.1)
+    game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+end
+
+-- Function to activate each skill with a 0.5-second delay between each skill
+local function useSkills()
+    for i, skillName in ipairs(skills) do
+        equipTool(skillName)
+        if skillName == "Nadeshiko Field" then
+            -- Hold "Nadeshiko Field" for 10 seconds
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+            wait(10)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+            wait(0.5) -- Brief pause after releasing Nadeshiko Field
+        else
+            -- Regular skill click
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+            wait(0.5) -- Wait 0.5 seconds between skill activations
+        end
+    end
+    -- Return to the main attack after all skills are used
+    performMainAttack()
+end
+
+-- Spawn loop to check if enough time has passed to use skills
+spawn(function()
+    while true do
+        if toggle then
+            wait(1) -- Slightly increased wait time between cycles
+
+            if not isCharacterAlive() then
+                HealthFlag = false
+                respawnCharacter()
+                wait(2)
+            else
+                HealthFlag = true
+            end
+
+            if HealthFlag then
+                equipPunchTool()
+
+                if not hasQuest() then
+                    sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                    takeQuest()
+                    wait(3)
+                end
+
+                if hasQuest() and isQuestCompleted() then
+                    sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                    completeQuest()
+                    wait(3)
+                    takeQuest()
+                    wait(3)
+                end
+
+                -- Use skills if 15 seconds have passed since last use
+                local currentTime = tick()
+                if currentTime - lastSkillUse >= skillCooldownTime then
+                    useSkills()
+                    lastSkillUse = currentTime
+                end
+
+                -- Resume attacking enemies as usual
+                if hasQuest() then
+                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            for _, targetName in ipairs(targetEnemies) do
+                                if enemy.Name:find(targetName) then
+                                    attackEnemy(enemy)
+                                    wait(0.5)
+                                    if isQuestCompleted() then
+                                        completeQuest()
+                                        takeQuest()
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            wait(0.1)
+        end
+    end
+end)
+
+-- User toggle for enabling/disabling autofarm
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.P then
+        toggle = not toggle
+        local status = toggle and "enabled" or "disabled"
+        sendNotification("Autofarm", "Autofarm " .. status)
+    end
+end)
