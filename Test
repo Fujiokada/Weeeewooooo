@@ -9,6 +9,7 @@ local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Star Sword"
 local skillNames = {"Lion's Slash", "Raijin Slash"}
 local teleportPosition = Vector3.new(232, 3, -703)
+local questNPCPosition = Vector3.new(232, 3, -703) -- Adjust this to the exact position of the quest NPC
 local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
@@ -107,11 +108,32 @@ local function activateSkills()
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         end
 
-        wait(2)  -- Skill activation delay
+        wait(2)
 
         unequipTool()
     end
     lastSkillUse = tick()
+end
+
+local function completeQuest()
+    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
+    wait(1)
+
+    local prompt = workspace.NPCs:FindFirstChild("Agor"):FindFirstChild("ProximityPrompt")
+    if prompt then
+        fireproximityprompt(prompt)
+        for i = 1, 2 do
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+            wait(1)
+        end
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+        wait(1)
+        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+        sendNotification("Quest", "Quest completed successfully.")
+    else
+        sendNotification("Error", "Quest NPC or ProximityPrompt not found!")
+    end
 end
 
 local function attackEnemy(enemy)
