@@ -99,17 +99,10 @@ local function unequipTool()
 end
 
 local function activateSkills()
-    local character = player.Character
+    unequipTool()  -- Make sure the katana is unequipped first
     for _, skillName in ipairs(skillNames) do
         equipTool(skillName)
 
-        -- Teleport behind the enemy before using skills
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local enemyPos = character.HumanoidRootPart.Position - character.HumanoidRootPart.CFrame.LookVector * 5
-            character:SetPrimaryPartCFrame(CFrame.new(enemyPos, character.HumanoidRootPart.Position))
-        end
-
-        -- Execute skill clicks
         for _ = 1, 10 do
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
             wait(0.1)
@@ -117,7 +110,7 @@ local function activateSkills()
         end
 
         wait(2)
-        unequipTool() -- Unequip the tool after using the skill
+        unequipTool()
     end
     lastSkillUse = tick()
 end
@@ -188,10 +181,12 @@ local function attackEnemy(enemy)
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
+        -- Use skills first if 20 seconds have passed
         if tick() - lastSkillUse >= 20 then
             activateSkills()
         end
 
+        -- Then equip katana for standard attack
         equipTool(punchToolName)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
