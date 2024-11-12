@@ -57,13 +57,13 @@ local function createFloatingPlatform()
         end
 
         game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
-        sendNotification("Platform", "Floating platform created under character.")
+        sendNotification("Platform", "Platform Created.")
     end
 end
 
 local function respawnCharacter()
     if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        sendNotification("Character Status", "Respawning in 2 seconds.")
         wait(2)
         spawnRemote:FireServer(1)
         wait(2)
@@ -77,10 +77,10 @@ end
 local function hasQuest()
     if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
         local questName = questHolder.Quest.QuestName.ContentText
-        sendNotification("Quest Status", "Currently active quest: " .. questName)
+        sendNotification("Quest Status", "Current active quest: " .. questName)
         return questName == targetQuestName
     else
-        sendNotification("Quest Status", "No active quest found in QuestHolder.")
+        sendNotification("Quest Status", "No active quest found.")
     end
     return false
 end
@@ -91,7 +91,7 @@ local function isQuestCompleted()
         sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
         return questProgressPath.Progress.ContentText == "3/3"
     else
-        sendNotification("Quest Progress", "Quest progress path or progress not found.")
+        sendNotification("Quest Progress", "Quest not found.")
     end
     return false
 end
@@ -116,7 +116,7 @@ local function takeQuest()
 end
 
 local function completeQuest()
-    sendNotification("Quest", "Starting quest completion process...")
+    sendNotification("Quest", "Completing Quest.")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
 
@@ -136,11 +136,11 @@ local function completeQuest()
     wait(1)
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
 
-    sendNotification("Quest", "Quest completion process finished.")
+    sendNotification("Quest", "Quest Completed.")
 end
 
 local function attackEnemy(enemy)
-    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+    sendNotification("Combat", "Attacking : " .. enemy.Name)
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
@@ -171,16 +171,16 @@ spawn(function()
                 equipPunchTool()
 
                 if not hasQuest() then
-                    sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                    sendNotification("Quest", "Quest Inactive.")
                     takeQuest()
                     wait(2)
                 end
 
                 if hasQuest() and isQuestCompleted() then
-                    sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                    sendNotification("Quest", "Quest completed.")
                     completeQuest()
                     wait(2)
-                    sendNotification("Quest", "Retaking quest after completion.")
+                    sendNotification("Quest", "Retaking quest.")
                     takeQuest()
                     wait(2)
                 end
@@ -192,9 +192,9 @@ spawn(function()
                                 if enemy.Name:find(targetName) then
                                     attackEnemy(enemy)
                                     if isQuestCompleted() then
-                                        sendNotification("Quest", "Quest completed after enemy defeat.")
+                                        sendNotification("Quest", "Quest completed.")
                                         completeQuest()
-                                        sendNotification("Quest", "Retaking quest after enemy defeat.")
+                                        sendNotification("Quest", "Retaking quest.")
                                         takeQuest()
                                         break
                                     end
@@ -216,6 +216,6 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
     if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.P then
         toggle = not toggle
         local status = toggle and "enabled" or "disabled"
-        sendNotification("Autofarm", "Autofarm " .. status)
+        sendNotification("Autofarm", "Status : " .. status)
     end
 end)
