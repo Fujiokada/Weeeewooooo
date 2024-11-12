@@ -18,7 +18,7 @@ local isQuestActive = false
 local isQuestCompletedFlag = false
 local isTargetingEnemy = false
 local isCharacterAliveFlag = false
-local HealthFlag = true -- New flag to track health
+local HealthFlag = true  -- New flag for health-based logic
 
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -28,15 +28,15 @@ local function sendNotification(title, text)
     })
 end
 
--- Track the character's health
-local function trackHealth()
+-- Health-based function to update HealthFlag
+local function updateHealthFlag()
     local character = player.Character
-    local humanoid = character and character:FindFirstChild("Humanoid")
-    if humanoid and humanoid.Health > 0 then
-        HealthFlag = true
+    if character and character:FindFirstChild("Humanoid") then
+        HealthFlag = character.Humanoid.Health > 0
     else
         HealthFlag = false
     end
+    return HealthFlag
 end
 
 -- Check if the character is alive by verifying the "Customizations" path
@@ -83,7 +83,7 @@ local function respawnCharacter()
         wait(2)  -- Wait for respawn
         createFloatingPlatform()  -- Create floating platform after respawn
         isCharacterAliveFlag = true  -- Mark the character as alive
-        HealthFlag = true -- Reset HealthFlag after respawn
+        HealthFlag = true  -- Reset HealthFlag
         sendNotification("Character Status", "Character respawned successfully.")
     else
         sendNotification("Character Status", "Character is still alive, no respawn needed.")
@@ -163,7 +163,7 @@ end
 -- Attack the given enemy
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and HealthFlag do
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
@@ -182,17 +182,12 @@ end
 spawn(function()
     while true do
         if toggle then
-            trackHealth()  -- Track health status
+            updateHealthFlag()  -- Update HealthFlag each loop
 
-            if not HealthFlag then  -- Check if health is zero
-                respawnCharacter()  -- Prioritize respawn
+            if not HealthFlag then
+                respawnCharacter()
                 wait(2)
-            else
-                if not isCharacterAlive() then
-                    respawnCharacter()
-                    wait(2)
-                end
-
+            elseif isCharacterAlive() then
                 equipPunchTool()
 
                 if not hasQuest() then
@@ -209,7 +204,7 @@ spawn(function()
 
                 if hasQuest() then
                     for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                             for _, targetName in ipairs(targetEnemies) do
                                 if enemy.Name:find(targetName) then
                                     attackEnemy(enemy)
@@ -224,6 +219,7 @@ spawn(function()
                     end
                 end
             end
+
             wait(0.5)
         else
             wait(0.1)
