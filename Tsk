@@ -144,35 +144,35 @@ spawn(function()
             if not isCharacterAlive() then
                 respawnCharacter()
                 wait(2)
-            end
-
-            if hasQuest() then
-                equipPunchTool()
-
-                if isQuestCompleted() then
-                    sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
-                    completeQuest()
+            else
+                if not hasQuest() then
+                    sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                    takeQuest()
                     wait(2)
-                else
-                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            for _, targetName in ipairs(targetEnemies) do
-                                if enemy.Name:find(targetName) then
-                                    attackEnemy(enemy)
-                                    if isQuestCompleted() then
-                                        sendNotification("Quest", "Quest completed after enemy defeat.")
-                                        completeQuest()
-                                        break
+                elseif hasQuest() then
+                    equipPunchTool()
+                    
+                    if isQuestCompleted() then
+                        sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                        completeQuest()
+                        wait(2)
+                    else
+                        for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                            if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                                for _, targetName in ipairs(targetEnemies) do
+                                    if enemy.Name:find(targetName) then
+                                        attackEnemy(enemy)
+                                        if isQuestCompleted() then
+                                            sendNotification("Quest", "Quest completed after enemy defeat.")
+                                            completeQuest()
+                                            break
+                                        end
                                     end
                                 end
                             end
                         end
                     end
                 end
-            else
-                sendNotification("Quest", "No active quest. Attempting to take quest.")
-                takeQuest()
-                wait(2)
             end
 
             wait(0.5)
