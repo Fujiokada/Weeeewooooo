@@ -182,7 +182,7 @@ local function attackEnemy(enemy)
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
         -- Use skills first if 20 seconds have passed
-        if tick() - lastSkillUse >= 20 then
+        if tick() - lastSkillUse >= 15 then
             activateSkills()
         end
 
