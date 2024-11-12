@@ -1,4 +1,3 @@
--- Initialize paths and settings
 local player = game:GetService("Players").LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local workspace = game:GetService("Workspace")
@@ -9,46 +8,76 @@ local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Star Sword"
 local teleportPosition = Vector3.new(232, 3, -703)
-local toggle = true  -- Toggle to start/stop the autofarm
-local VIM = game:GetService("VirtualInputManager")
 local autoClickPosition = Vector2.new(903, 478)
+local floatName = "FloatingPlatform"
+local StarterGui = game:GetService("StarterGui")
+local toggle = false
 
--- Function to check if character is alive
+local function sendNotification(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 5;
+    })
+end
+
 local function isCharacterAlive()
-    local character = workspace:FindFirstChild(player.Name)
+    local character = workspace:FindFirstChild("Venqtrix")
     return character and character:FindFirstChild("Customizations") ~= nil
 end
 
--- Function to respawn character
-local function respawnCharacter()
-    spawnRemote:FireServer(1)
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        local FloatValue = -3.1
+
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        sendNotification("Platform", "Floating platform created under character.")
+    end
 end
 
--- Enhanced function to check for quest
+local function respawnCharacter()
+    spawnRemote:FireServer(1)
+    wait(2)
+    createFloatingPlatform()
+end
+
 local function hasQuest()
     if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
         local questName = questHolder.Quest.QuestName.ContentText
-        print("Currently active quest:", questName)
+        sendNotification("Quest Status", "Currently active quest: " .. questName)
         return questName == targetQuestName
     else
-        print("No active quest found in QuestHolder.")
+        sendNotification("Quest Status", "No active quest found in QuestHolder.")
     end
     return false
 end
 
--- Function to check if quest is completed
 local function isQuestCompleted()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
     if questProgressPath and questProgressPath:FindFirstChild("Progress") then
-        print("Quest progress:", questProgressPath.Progress.ContentText)
+        sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
         return questProgressPath.Progress.ContentText == "3/3"
     else
-        print("Quest progress path or progress not found.")
+        sendNotification("Quest Progress", "Quest progress path or progress not found.")
     end
     return false
 end
 
--- Function to equip the Punch tool
 local function equipPunchTool()
     local tool = player.Backpack:FindFirstChild(punchToolName)
     if tool then
@@ -56,21 +85,20 @@ local function equipPunchTool()
     end
 end
 
--- Function to take the Strong Soul quest
 local function takeQuest()
-    print("Attempting to take quest...")
+    sendNotification("Quest", "Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
+    
     for _ = 1, 6 do
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
         wait(1)
     end
 end
 
--- Function to complete the quest with dialogue
 local function completeQuest()
-    print("Starting quest completion process...")
+    sendNotification("Quest", "Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     
@@ -78,79 +106,88 @@ local function completeQuest()
     if prompt then
         fireproximityprompt(prompt)
     else
-        print("Proximity prompt not found!")
+        sendNotification("Quest", "Proximity prompt not found!")
         return
     end
-
+    
     for i = 1, 2 do
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
         wait(1)
     end
-    
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     wait(1)
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+    
+    sendNotification("Quest", "Quest completion process finished.")
 end
 
--- Auto-click function
-local function startAutoClicker()
-    spawn(function()
-        while toggle do
-            VIM:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-            VIM:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
-            wait(0.1)
-        end
-    end)
-end
-
--- Function to attack the enemy with auto-click enabled
 local function attackEnemy(enemy)
-    toggle = true
-    startAutoClicker()
+    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+        
         equipPunchTool()
+        
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+        
         wait(0.1)
     end
-    toggle = false
+    wait(0.5) 
 end
 
--- Main loop
 spawn(function()
-    while toggle do
-        if not isCharacterAlive() then
-            respawnCharacter()
-            wait(2)
-        end
+    while true do
+        if toggle then
+            if not isCharacterAlive() then
+                respawnCharacter()
+                wait(2)
+            end
 
-        equipPunchTool()
+            equipPunchTool()
 
-        if not hasQuest() then
-            print("Quest not active. Attempting to take quest.")
-            takeQuest()
-            wait(2)
-        end
+            if not hasQuest() then
+                sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                takeQuest()
+                wait(2)
+            end
 
-        if hasQuest() and isQuestCompleted() then
-            print("Quest completed. Attempting to complete quest dialogue.")
-            completeQuest()
-            wait(2)
-        end
+            if hasQuest() and isQuestCompleted() then
+                sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                completeQuest()
+                wait(2)
+            end
 
-        if hasQuest() then
-            for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                    for _, targetName in ipairs(targetEnemies) do
-                        if enemy.Name:find(targetName) then
-                            print("Attacking enemy:", enemy.Name)
-                            attackEnemy(enemy)
-                            break
+            if hasQuest() then
+                for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                    if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        for _, targetName in ipairs(targetEnemies) do
+                            if enemy.Name:find(targetName) then
+                                attackEnemy(enemy)
+                                if isQuestCompleted() then
+                                    sendNotification("Quest", "Quest completed after enemy defeat.")
+                                    completeQuest()
+                                    break
+                                end
+                            end
                         end
                     end
                 end
             end
+
+            wait(0.5)
+        else
+            wait(0.1)
         end
-        wait(0.5)
+    end
+end)
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.P then
+        toggle = not toggle
+        local status = toggle and "enabled" or "disabled"
+        sendNotification("Autofarm", "Autofarm " .. status)
     end
 end)
