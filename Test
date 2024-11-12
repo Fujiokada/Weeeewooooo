@@ -7,6 +7,7 @@ local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Katana"
+local skillNames = {"Lion's Slash", "Raijin Slash", "Nadeshiko Field"}  -- Skill tools in order
 local teleportPosition = Vector3.new(232, 3, -703)
 local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
@@ -18,10 +19,7 @@ local isQuestCompletedFlag = false
 local isTargetingEnemy = false
 local isCharacterAliveFlag = false
 local HealthFlag = true
-
-local skills = {"Lion's Slash", "Raijin Slash", "Nadeshiko Field"} -- Skill names
-local skillCooldown = 15 -- Delay before reusing skills
-local nadeshikoCooldown = 25 -- Delay for Nadeshiko Field
+local lastSkillUse = 0
 
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -41,51 +39,120 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
-local function equipPunchTool()
-    local tool = player.Backpack:FindFirstChild(punchToolName)
-    if tool then
-        tool.Parent = player.Character
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        local FloatValue = -3.1
+
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+            wait(0.2)
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        sendNotification("Platform", "Floating platform created under character.")
     end
+end
+
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
+    else
+        sendNotification("Character Status", "Character is still alive, no respawn needed.")
+    end
+end
+
+local function hasQuest()
+    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
+        local questName = questHolder.Quest.QuestName.ContentText
+        sendNotification("Quest Status", "Currently active quest: " .. questName)
+        return questName == targetQuestName
+    else
+        sendNotification("Quest Status", "No active quest found in QuestHolder.")
+    end
+    return false
+end
+
+local function isQuestCompleted()
+    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
+        sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
+        return questProgressPath.Progress.ContentText == "3/3"
+    else
+        sendNotification("Quest Progress", "Quest progress path or progress not found.")
+    end
+    return false
 end
 
 local function equipTool(toolName)
     local tool = player.Backpack:FindFirstChild(toolName)
     if tool then
         tool.Parent = player.Character
-        return true
     end
-    return false
-end
-
-local function autoClick()
-    game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-    wait(0.1)
-    game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
 end
 
 local function useSkills()
-    for _, skill in ipairs(skills) do
-        if equipTool(skill) then
-            if skill == "Nadeshiko Field" then
-                -- Special handling for Nadeshiko Field with a hold click
+    local currentTime = tick()
+    if currentTime - lastSkillUse >= 15 then
+        lastSkillUse = currentTime
+
+        for i, skillName in ipairs(skillNames) do
+            equipTool(skillName)
+            wait(0.5)
+
+            if skillName == "Nadeshiko Field" then
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-                wait(10) -- Hold for 10 seconds
+                wait(10)
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
-                wait(25) -- Wait 25 seconds before reusing Nadeshiko Field
             else
-                autoClick()
-                wait(0.5) -- Delay between skill activations
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+                wait(0.1)
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
             end
         end
+
+        wait(25)  -- Nadeshiko Field cooldown
     end
 end
 
--- Main loop to handle skills and punching
+local function attackEnemy(enemy)
+    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+
+        useSkills()
+        equipTool(punchToolName)
+
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+
+        wait(0.2)
+    end
+    wait(0.5)
+end
+
 spawn(function()
     while true do
         if toggle then
             wait(1)
-            
+
             if not isCharacterAlive() then
                 HealthFlag = false
                 respawnCharacter()
@@ -93,11 +160,23 @@ spawn(function()
             else
                 HealthFlag = true
             end
-            
-            if HealthFlag then
-                equipPunchTool()
 
-                -- Quest handling code omitted for brevity...
+            if HealthFlag then
+                equipTool(punchToolName)
+
+                if not hasQuest() then
+                    sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                    takeQuest()
+                    wait(3)
+                end
+
+                if hasQuest() and isQuestCompleted() then
+                    sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                    completeQuest()
+                    wait(3)
+                    takeQuest()
+                    wait(3)
+                end
 
                 if hasQuest() then
                     for _, enemy in ipairs(aiCharacters:GetChildren()) do
@@ -116,13 +195,6 @@ spawn(function()
                         end
                     end
                 end
-                
-                -- Use skills every 15 seconds, then default to punch
-                useSkills()
-                wait(skillCooldown)
-                equipPunchTool()
-                autoClick()
-                wait(skillCooldown)
             end
         else
             wait(0.1)
