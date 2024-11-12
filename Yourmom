@@ -13,12 +13,11 @@ local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
 
--- Flags
 local isQuestActive = false
 local isQuestCompletedFlag = false
 local isTargetingEnemy = false
 local isCharacterAliveFlag = false
-local HealthFlag = true  -- New flag to track if character has died
+local HealthFlag = true
 
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -28,7 +27,6 @@ local function sendNotification(title, text)
     })
 end
 
--- Check if the character is alive by verifying the "Customizations" path
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     if character and character:FindFirstChild("Customizations") then
@@ -39,7 +37,6 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
--- Create the floating platform for the character
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -64,20 +61,19 @@ local function createFloatingPlatform()
     end
 end
 
--- Respawn the character if dead
 local function respawnCharacter()
     if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning now...")
-        spawnRemote:FireServer(1)  -- Trigger respawn with spawn remote
-        wait(2)  -- Wait for respawn
-        createFloatingPlatform()  -- Create floating platform after respawn
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
         sendNotification("Character Status", "Character respawned successfully.")
     else
         sendNotification("Character Status", "Character is still alive, no respawn needed.")
     end
 end
 
--- Check if a quest is active
 local function hasQuest()
     if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
         local questName = questHolder.Quest.QuestName.ContentText
@@ -89,7 +85,6 @@ local function hasQuest()
     return false
 end
 
--- Check if the active quest is completed
 local function isQuestCompleted()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
     if questProgressPath and questProgressPath:FindFirstChild("Progress") then
@@ -101,7 +96,6 @@ local function isQuestCompleted()
     return false
 end
 
--- Equip the punch tool to the character
 local function equipPunchTool()
     local tool = player.Backpack:FindFirstChild(punchToolName)
     if tool then
@@ -109,7 +103,6 @@ local function equipPunchTool()
     end
 end
 
--- Take the quest by interacting with the NPC
 local function takeQuest()
     sendNotification("Quest", "Attempting to take quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
@@ -122,7 +115,6 @@ local function takeQuest()
     end
 end
 
--- Complete the active quest by interacting with the NPC
 local function completeQuest()
     sendNotification("Quest", "Starting quest completion process...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
@@ -147,7 +139,6 @@ local function completeQuest()
     sendNotification("Quest", "Quest completion process finished.")
 end
 
--- Attack the given enemy
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
@@ -165,7 +156,6 @@ local function attackEnemy(enemy)
     wait(0.5)
 end
 
--- Main loop
 spawn(function()
     while true do
         if toggle then
@@ -186,13 +176,12 @@ spawn(function()
                     wait(2)
                 end
 
-                -- Immediately retake the quest after completion
                 if hasQuest() and isQuestCompleted() then
                     sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
                     completeQuest()
                     wait(2)
                     sendNotification("Quest", "Retaking quest after completion.")
-                    takeQuest()  -- Retake quest immediately
+                    takeQuest()
                     wait(2)
                 end
 
@@ -206,7 +195,7 @@ spawn(function()
                                         sendNotification("Quest", "Quest completed after enemy defeat.")
                                         completeQuest()
                                         sendNotification("Quest", "Retaking quest after enemy defeat.")
-                                        takeQuest()  -- Retake quest after completing dialogue
+                                        takeQuest()
                                         break
                                     end
                                 end
@@ -223,7 +212,6 @@ spawn(function()
     end
 end)
 
--- Toggle autofarm with the "P" key
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.P then
         toggle = not toggle
