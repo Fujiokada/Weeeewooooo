@@ -13,6 +13,12 @@ local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
 
+-- Flags
+local isQuestActive = false
+local isQuestCompletedFlag = false
+local isTargetingEnemy = false
+local isCharacterAliveFlag = false
+
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
         Title = title;
@@ -23,7 +29,8 @@ end
 
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
-    return character and character:FindFirstChild("Customizations") ~= nil
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
+    return isCharacterAliveFlag
 end
 
 local function createFloatingPlatform()
@@ -51,22 +58,30 @@ local function createFloatingPlatform()
 end
 
 local function respawnCharacter()
-    spawnRemote:FireServer(1)
-    wait(2)
-    createFloatingPlatform()
+    if not isCharacterAliveFlag then
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        isCharacterAliveFlag = true
+    end
 end
 
-local function hasQuest()
+local function checkQuestStatus()
     local quest = questHolder:FindFirstChild("Quest")
     if quest and quest:FindFirstChild("QuestName") then
-        return quest.QuestName.ContentText == targetQuestName
+        isQuestActive = quest.QuestName.ContentText == targetQuestName
+    else
+        isQuestActive = false
     end
-    return false
 end
 
-local function isQuestCompleted()
+local function checkQuestCompletion()
     local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    return questProgressPath and questProgressPath:FindFirstChild("Progress") and questProgressPath.Progress.ContentText == "3/3"
+    if questProgressPath and questProgressPath:FindFirstChild("Progress") then
+        isQuestCompletedFlag = questProgressPath.Progress.ContentText == "3/3"
+    else
+        isQuestCompletedFlag = false
+    end
 end
 
 local function equipPunchTool()
@@ -106,7 +121,8 @@ local function completeQuest()
 end
 
 local function attackEnemy(enemy)
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
+    isTargetingEnemy = true
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAliveFlag do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
         
@@ -119,6 +135,7 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
     wait(0.5)
+    isTargetingEnemy = false
 end
 
 spawn(function()
@@ -131,22 +148,39 @@ spawn(function()
 
             equipPunchTool()
 
-            if not hasQuest() then
-                takeQuest()
-                wait(2)
-            elseif isQuestCompleted() then
-                completeQuest()
-                wait(2)
+            if not isQuestActive then
+                checkQuestStatus()
+                if not isQuestActive then
+                    takeQuest()
+                    wait(2)
+                    checkQuestStatus()
+                end
             end
 
-            for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                    for _, targetName in ipairs(targetEnemies) do
-                        if enemy.Name:find(targetName) then
-                            attackEnemy(enemy)
-                            if isQuestCompleted() then
-                                completeQuest()
-                                break
+            if isQuestActive and not isQuestCompletedFlag then
+                checkQuestCompletion()
+            end
+
+            if isQuestCompletedFlag then
+                completeQuest()
+                wait(2)
+                isQuestCompletedFlag = false
+                isQuestActive = false
+            end
+
+            if isQuestActive and not isQuestCompletedFlag then
+                for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                    if isCharacterAliveFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and not isTargetingEnemy then
+                        for _, targetName in ipairs(targetEnemies) do
+                            if enemy.Name:find(targetName) then
+                                attackEnemy(enemy)
+                                if isQuestCompletedFlag then
+                                    completeQuest()
+                                    wait(2)
+                                    isQuestCompletedFlag = false
+                                    isQuestActive = false
+                                    break
+                                end
                             end
                         end
                     end
