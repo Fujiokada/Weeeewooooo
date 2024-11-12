@@ -106,6 +106,15 @@ local function equipTool(toolName)
     end
 end
 
+local function unequipTool()
+    local character = player.Character
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = player.Backpack
+        end
+    end
+end
+
 local function useSkills()
     local currentTime = tick()
     if currentTime - lastSkillUse >= 15 then
@@ -113,20 +122,23 @@ local function useSkills()
 
         for i, skillName in ipairs(skillNames) do
             equipTool(skillName)
-            wait(0.5)
+            wait(1)
 
             if skillName == "Nadeshiko Field" then
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-                wait(10)
+                wait(10)  -- Hold for 10 seconds
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
             else
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
                 wait(0.1)
                 game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
             end
+
+            unequipTool()  -- Unequip after using each skill
+            wait(1)
         end
 
-        wait(25)  -- Nadeshiko Field cooldown
+        wait(25)  -- Additional cooldown for Nadeshiko Field
     end
 end
 
