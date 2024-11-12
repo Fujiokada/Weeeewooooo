@@ -59,10 +59,10 @@ end
 local function hasQuest()
     if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
         local questName = questHolder.Quest.QuestName.ContentText
-        sendNotification("Quest Status", "Currently active quest: " .. questName)
+        sendNotification("Quest Status", "Current Active Quest: " .. questName)
         return questName == targetQuestName
     else
-        sendNotification("Quest Status", "No active quest found in QuestHolder.")
+        sendNotification("Quest Status", "No Active Quest/s")
     end
     return false
 end
@@ -73,7 +73,7 @@ local function isQuestCompleted()
         sendNotification("Quest Progress", "Quest progress: " .. questProgressPath.Progress.ContentText)
         return questProgressPath.Progress.ContentText == "3/3"
     else
-        sendNotification("Quest Progress", "Quest progress path or progress not found.")
+        sendNotification("Quest Progress", "Quest Not Found.")
     end
     return false
 end
@@ -98,7 +98,7 @@ local function takeQuest()
 end
 
 local function completeQuest()
-    sendNotification("Quest", "Starting quest completion process...")
+    sendNotification("Quest", "Attempting to complete Quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
     wait(1)
     
@@ -118,7 +118,7 @@ local function completeQuest()
     wait(1)
     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
     
-    sendNotification("Quest", "Quest completion process finished.")
+    sendNotification("Quest", "Quest Completed.")
 end
 
 local function attackEnemy(enemy)
@@ -154,7 +154,7 @@ spawn(function()
             end
 
             if hasQuest() and isQuestCompleted() then
-                sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                sendNotification("Quest", "Quest completed. Attempting to complete quest.")
                 completeQuest()
                 wait(2)
             end
