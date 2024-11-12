@@ -9,7 +9,7 @@ local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Star Sword"
 local skillNames = {"Lion's Slash", "Raijin Slash"}
 local teleportPosition = Vector3.new(232, 3, -703)
-local questNPCPosition = Vector3.new(232, 3, -703) -- Adjust this to the exact position of the quest NPC
+local questNPCPosition = Vector3.new(232, 3, -703) -- Adjust to exact position of the quest NPC
 local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
@@ -109,10 +109,37 @@ local function activateSkills()
         end
 
         wait(2)
-
         unequipTool()
     end
     lastSkillUse = tick()
+end
+
+local function takeQuest()
+    sendNotification("Quest", "Attempting to retake quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for _ = 1, 4 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+                wait(1)
+            end
+            sendNotification("Quest", "Quest successfully retaken.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
 end
 
 local function completeQuest()
@@ -120,19 +147,29 @@ local function completeQuest()
     player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
     wait(1)
 
-    local prompt = workspace.NPCs:FindFirstChild("Agor"):FindFirstChild("ProximityPrompt")
-    if prompt then
-        fireproximityprompt(prompt)
-        for i = 1, 2 do
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for i = 1, 2 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                    wait(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+            end
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
             wait(1)
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            sendNotification("Quest", "Quest completed successfully.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
         end
-        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-        wait(1)
-        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-        sendNotification("Quest", "Quest completed successfully.")
     else
-        sendNotification("Error", "Quest NPC or ProximityPrompt not found!")
+        sendNotification("Error", "Quest NPC not found in workspace!")
     end
 end
 
