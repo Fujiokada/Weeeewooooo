@@ -17,8 +17,8 @@ local toggle = false
 local isQuestActive = false
 local isQuestCompletedFlag = false
 local isTargetingEnemy = false
-local isCharacterAliveFlag = false  -- Tracks if the character is alive via Customizations
-local isDeadFlag = false  -- Tracks if the character is dead via health
+local isCharacterAliveFlag = false
+local HealthFlag = true -- New flag to track health
 
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -28,7 +28,18 @@ local function sendNotification(title, text)
     })
 end
 
--- Function to check if the character is alive based on "Customizations"
+-- Track the character's health
+local function trackHealth()
+    local character = player.Character
+    local humanoid = character and character:FindFirstChild("Humanoid")
+    if humanoid and humanoid.Health > 0 then
+        HealthFlag = true
+    else
+        HealthFlag = false
+    end
+end
+
+-- Check if the character is alive by verifying the "Customizations" path
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     if character and character:FindFirstChild("Customizations") then
@@ -37,25 +48,6 @@ local function isCharacterAlive()
         isCharacterAliveFlag = false
     end
     return isCharacterAliveFlag
-end
-
--- Function to check if the character is alive or dead based on health
-local function checkCharacterHealth()
-    local character = workspace:FindFirstChild("Venqtrix")
-    if character then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            if humanoid.Health <= 0 then
-                isDeadFlag = true  -- Character is dead (health is 0)
-            else
-                isDeadFlag = false  -- Character is alive
-            end
-        else
-            isDeadFlag = true  -- No humanoid, assume character is dead
-        end
-    else
-        isDeadFlag = true  -- No character found, assume dead
-    end
 end
 
 -- Create the floating platform for the character
@@ -85,12 +77,13 @@ end
 
 -- Respawn the character if dead
 local function respawnCharacter()
-    if isDeadFlag then
+    if not isCharacterAliveFlag then
         sendNotification("Character Status", "Character is dead, respawning now...")
         spawnRemote:FireServer(1)  -- Trigger respawn with spawn remote
         wait(2)  -- Wait for respawn
         createFloatingPlatform()  -- Create floating platform after respawn
-        isDeadFlag = false  -- Mark the character as alive
+        isCharacterAliveFlag = true  -- Mark the character as alive
+        HealthFlag = true -- Reset HealthFlag after respawn
         sendNotification("Character Status", "Character respawned successfully.")
     else
         sendNotification("Character Status", "Character is still alive, no respawn needed.")
@@ -170,7 +163,7 @@ end
 -- Attack the given enemy
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() do
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and HealthFlag do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 5
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
@@ -189,44 +182,48 @@ end
 spawn(function()
     while true do
         if toggle then
-            checkCharacterHealth()  -- Check health before doing anything else
+            trackHealth()  -- Track health status
 
-            if isDeadFlag then
-                respawnCharacter()
+            if not HealthFlag then  -- Check if health is zero
+                respawnCharacter()  -- Prioritize respawn
                 wait(2)
-            end
+            else
+                if not isCharacterAlive() then
+                    respawnCharacter()
+                    wait(2)
+                end
 
-            equipPunchTool()
+                equipPunchTool()
 
-            if not hasQuest() then
-                sendNotification("Quest", "Quest not active. Attempting to take quest.")
-                takeQuest()
-                wait(2)
-            end
+                if not hasQuest() then
+                    sendNotification("Quest", "Quest not active. Attempting to take quest.")
+                    takeQuest()
+                    wait(2)
+                end
 
-            if hasQuest() and isQuestCompleted() then
-                sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
-                completeQuest()
-                wait(2)
-            end
+                if hasQuest() and isQuestCompleted() then
+                    sendNotification("Quest", "Quest completed. Attempting to complete quest dialogue.")
+                    completeQuest()
+                    wait(2)
+                end
 
-            if hasQuest() then
-                for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                    if isCharacterAlive() and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        for _, targetName in ipairs(targetEnemies) do
-                            if enemy.Name:find(targetName) then
-                                attackEnemy(enemy)
-                                if isQuestCompleted() then
-                                    sendNotification("Quest", "Quest completed after enemy defeat.")
-                                    completeQuest()
-                                    break
+                if hasQuest() then
+                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                        if HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            for _, targetName in ipairs(targetEnemies) do
+                                if enemy.Name:find(targetName) then
+                                    attackEnemy(enemy)
+                                    if isQuestCompleted() then
+                                        sendNotification("Quest", "Quest completed after enemy defeat.")
+                                        completeQuest()
+                                        break
+                                    end
                                 end
                             end
                         end
                     end
                 end
             end
-
             wait(0.5)
         else
             wait(0.1)
