@@ -182,16 +182,18 @@ local function respawnCharacter()
 end
 
 local function hasQuest()
-    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
-        local questName = questHolder.Quest.QuestName.ContentText
-        return questName == targetQuestName
+    -- Check if the player currently has the target quest
+    local quest = questHolder:FindFirstChild("Quest")
+    if quest and quest:FindFirstChild("QuestName") then
+        return quest.QuestName.ContentText == targetQuestName
     end
     return false
 end
 
 local function isQuestCompleted()
-    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    return questProgressPath and questProgressPath.Progress.ContentText == "3/3"
+    -- Check if the quest progress indicates completion (3/3)
+    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    return questProgress and questProgress.Progress.ContentText == "3/3"
 end
 
 local function attackEnemy(enemy)
@@ -214,7 +216,7 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 end
-
+-- Main loop
 spawn(function()
     while true do
         if toggle then
@@ -226,26 +228,30 @@ spawn(function()
             end
 
             if HealthFlag then
+                -- Start or retake the quest if no active quest is found
                 if not hasQuest() then
                     sendNotification("Quest", "No active quest, attempting to start quest.")
                     takeQuest()
                     wait(1)
                 end
 
+                -- If the quest is completed, turn it in and retake it
                 if hasQuest() and isQuestCompleted() then
                     sendNotification("Quest", "Quest completed, turning in.")
                     completeQuest()
                     wait(1)
-                    takeQuest()
+                    takeQuest() -- Retake quest immediately after completion
                     wait(1)
                 end
 
-                if hasQuest() then
+                -- Find and attack target enemies if the quest is active
+                if hasQuest() and not isQuestCompleted() then
                     for _, enemy in ipairs(aiCharacters:GetChildren()) do
                         if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                             for _, targetName in ipairs(targetEnemies) do
                                 if enemy.Name:find(targetName) then
                                     attackEnemy(enemy)
+                                    -- Check quest completion status after each enemy
                                     if isQuestCompleted() then
                                         completeQuest()
                                         takeQuest()
