@@ -84,8 +84,8 @@ end
 -- Update skill activation to avoid holding LMB if Nadeshiko Field fails to activate
 local function activateSkills()
     unequipTool()
-
-    -- Activate "Lion's Slash"
+    
+    -- Activate "Lion's Slash" if not on cooldown
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
     if lionSlashTool and not lionSlashTool.Name:match("%d") then
         equipTool("Lion's Slash")
@@ -97,20 +97,20 @@ local function activateSkills()
         wait(1)  -- Wait for Lion's Slash to fully activate
         unequipTool()
     end
-
-    -- Wait 1 second before activating "Nadeshiko Field"
-    wait(1)
-    local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
     
-    -- Check if Nadeshiko Field is already active
-    if nadeshikoTool and not nadeshikoTool.Name:match("%d") and not isNadeshikoFieldActive() then
-        equipTool("Nadeshiko Field")
-        simulateHoldClick(2)  -- Adjust hold time to reduce delay
-        unequipTool()
-        
-        -- Check again if activation was successful
-        if not isNadeshikoFieldActive() then
-            sendNotification("Skill", "Nadeshiko Field activation failed.")
+    -- Only activate "Nadeshiko Field" if it's not already active
+    wait(1)
+    if not isNadeshikoFieldActive() then
+        local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
+        if nadeshikoTool and not nadeshikoTool.Name:match("%d") then
+            equipTool("Nadeshiko Field")
+            
+            -- Hold LMB for 2 seconds first to check if it activates
+            simulateHoldClick(2)
+            if not isNadeshikoFieldActive() then
+                simulateHoldClick(8)  -- Continue holding if activation succeeded
+            end
+            unequipTool()
         end
     end
 
@@ -225,8 +225,8 @@ local function attackEnemy(enemy)
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Use skills only when cooldown has passed and an enemy is targeted
-        if tick() - lastSkillUse > 5 and not isNadeshikoFieldActive() then  -- Adjust cooldown duration if needed
+        -- Use skills first if cooldown has passed
+        if tick() - lastSkillUse > 5 then  -- Adjust cooldown duration if needed
             activateSkills()
         end
 
@@ -238,7 +238,6 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 end
-
 -- Main loop
 spawn(function()
     while true do
