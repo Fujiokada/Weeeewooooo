@@ -123,7 +123,7 @@ local function activateSkills()
                     VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
                 end
                 
-                wait(1)  -- Wait 1 second before activating Nadeshiko Field
+                wait(2)  -- Wait 1 second before activating Nadeshiko Field
             elseif skillName == "Nadeshiko Field" then
                 -- Activate Nadeshiko Field by holding LMB for 15 seconds
                 simulateHoldClick(15)
