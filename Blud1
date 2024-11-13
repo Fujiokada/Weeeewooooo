@@ -81,6 +81,7 @@ local function unequipTool()
     end
 end
 
+-- Update skill activation to avoid holding LMB if Nadeshiko Field fails to activate
 local function activateSkills()
     unequipTool()
 
@@ -111,35 +112,16 @@ local function activateSkills()
     lastSkillUse = tick()  -- Update last skill use time
 end
 
-local function takeQuest()
-    sendNotification("Quest", "Attempting to retake quest...")
-    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for _ = 1, 4 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
-                end
-                wait(1)
-            end
-            sendNotification("Quest", "Quest successfully retaken.")
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
+-- Check if Nadeshiko Field is active
+local function isNadeshikoFieldActive()
+    return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
+-- Update quest completion and retake to wait until Nadeshiko Field is inactive
 local function completeQuest()
+    while isNadeshikoFieldActive() do
+        wait(0.5)  -- Wait until the skill is inactive
+    end
     sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
     wait(1)
@@ -162,6 +144,38 @@ local function completeQuest()
             wait(1)
             replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
             sendNotification("Quest", "Quest completed successfully.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
+end
+
+
+local function takeQuest()
+    while isNadeshikoFieldActive() do
+        wait(0.5)  -- Wait until the skill is inactive
+    end
+    sendNotification("Quest", "Attempting to retake quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for _ = 1, 4 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+                wait(1)
+            end
+            sendNotification("Quest", "Quest successfully retaken.")
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
         end
