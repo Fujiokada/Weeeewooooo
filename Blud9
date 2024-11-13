@@ -113,20 +113,11 @@ local function isNadeshikoOnCooldown()
     return false  -- Not on cooldown if tool is not in cooldown state
 end
 
--- Updated activateSkills function to include enemy health check for Nadeshiko Field
-local function activateSkills(currentEnemy)
-    -- Check if the enemy's health is above 20% before using Nadeshiko Field
-    local shouldUseNadeshiko = false
-
-    if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
-        local humanoid = currentEnemy.Humanoid
-        local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-        shouldUseNadeshiko = healthPercentage > 30 
-    end
-
+-- Updated activateSkills to hold Nadeshiko Field until all enemies in range are dead or cooldown starts
+local function activateSkills()
     unequipTool()
 
-    -- Activate "Lion's Slash" without health condition
+    -- Activate "Lion's Slash" as before
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
     if lionSlashTool then
         equipTool("Lion's Slash")
@@ -135,31 +126,29 @@ local function activateSkills(currentEnemy)
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
         end
-        wait(1)  -- Wait for Lion's Slash to activate
+        wait(1)
         unequipTool()
     end
 
-    -- Activate and hold "Nadeshiko Field" while enemies in the field have health > 0
+    -- Activate and hold "Nadeshiko Field" while enemies in range are alive and not on cooldown
     local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
     if nadeshikoTool and not isNadeshikoFieldActive() and not isNadeshikoOnCooldown() then
         equipTool("Nadeshiko Field")
-
-        -- Simulate holding the click for Nadeshiko Field
-        local clickHeld = true
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
         
-        while clickHeld do
+        -- Begin holding down the click for Nadeshiko Field
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+
+        -- Hold the skill while enemies in the field have health > 0
+        while not isNadeshikoOnCooldown() do
             local enemiesInField = getEnemiesInField()
-            if #enemiesInField == 0 or isNadeshikoOnCooldown() then
-                clickHeld = false  -- Stop holding click if no enemies in range or skill is on cooldown
-            else
-                wait(0.1)  -- Keep holding for as long as enemies are in field and not on cooldown
+            if #enemiesInField == 0 then
+                break  -- Stop if no more enemies are alive in the field
             end
+            wait(0.1)  -- Short wait to repeatedly check enemies' status in the field
         end
 
-        -- Release the click for Nadeshiko Field
+        -- Release the click to stop Nadeshiko Field
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-        unequipTool()
     end
 
     equipTool(punchToolName)
@@ -271,7 +260,7 @@ end
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isNadeshikoFieldActive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
@@ -285,11 +274,6 @@ local function attackEnemy(enemy)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
         wait(0.1)
-    end
-
-    -- Stop combat if Nadeshiko Field activates
-    if isNadeshikoFieldActive() then
-        sendNotification("Combat", "Combat paused due to Nadeshiko Field activation.")
     end
 end
 
