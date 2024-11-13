@@ -72,6 +72,15 @@ local function equipTool(toolName)
     end
 end
 
+local function unequipTool()
+    local character = player.Character
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = player.Backpack
+        end
+    end
+end
+
 -- Function to check if Nadeshiko Field is active
 local function isNadeshikoFieldActive()
     return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
@@ -160,6 +169,107 @@ local function activateSkills()
     activateNadeshikoField()
 end
 
+-- Additional check for teleport prevention when Nadeshiko Field is active
+local function teleportToPositionIfNadeshikoInactive(position)
+    if not isNadeshikoFieldActive() then
+        player.Character:SetPrimaryPartCFrame(CFrame.new(position))
+    else
+        sendNotification("Teleport", "Teleportation blocked due to Nadeshiko Field.")
+    end
+end
+
+local function completeQuest()
+    while isNadeshikoFieldActive() do
+        wait(0.5)
+    end
+    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
+    teleportToPositionIfNadeshikoInactive(questNPCPosition)
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for i = 1, 2 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                    wait(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+            end
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            wait(1)
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            sendNotification("Quest", "Quest completed successfully.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
+end
+
+-- Update quest retake function to wait for Nadeshiko Field to finish
+local function takeQuest()
+    while isNadeshikoFieldActive() do
+        wait(0.5)
+    end
+    sendNotification("Quest", "Attempting to retake quest...")
+    teleportToPositionIfNadeshikoInactive(teleportPosition)
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for _ = 1, 4 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+                wait(1)
+            end
+            sendNotification("Quest", "Quest successfully retaken.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
+end
+
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
+    end
+end
+
+local function hasQuest()
+    -- Check if the player currently has the target quest
+    local quest = questHolder:FindFirstChild("Quest")
+    if quest and quest:FindFirstChild("QuestName") then
+        return quest.QuestName.ContentText == targetQuestName
+    end
+    return false
+end
+
+local function isQuestCompleted()
+    -- Check if the quest progress indicates completion (3/3)
+    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    return questProgress and questProgress.Progress.ContentText == "3/3"
+end
+
 -- Updated attackEnemy to call activateNadeshikoField based on the current enemy
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
@@ -177,6 +287,12 @@ local function attackEnemy(enemy)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
         wait(0.1)
+    end
+end
+
+    -- Stop combat if Nadeshiko Field activates
+    if isNadeshikoFieldActive() then
+        sendNotification("Combat", "Combat paused due to Nadeshiko Field activation.")
     end
 end
 
