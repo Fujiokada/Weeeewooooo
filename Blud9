@@ -44,8 +44,18 @@ local function sendDiscordNotification(status, details)
         }}
     }
 
-    local jsonData = httpService:JSONEncode(payload)
-    httpService:PostAsync(webhookUrl, jsonData, Enum.HttpContentType.ApplicationJson)
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
+    pcall(function()
+        syn.request({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+    end)
 end
 
 local function isCharacterAlive()
