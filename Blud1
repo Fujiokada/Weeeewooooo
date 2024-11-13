@@ -7,8 +7,7 @@ local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Katana"
-local skillNames = {"Lion's Slash"}
-local nadeshikoSkill = "Nadeshiko Field"
+local skillNames = {"Lion's Slash", "Nadeshiko Field"}
 local teleportPosition = Vector3.new(232, 3, -703)
 local questNPCPosition = Vector3.new(232, 3, -703)
 local autoClickPosition = Vector2.new(903, 478)
@@ -59,6 +58,118 @@ local function createFloatingPlatform()
     end
 end
 
+local function simulateHoldClick(duration)
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+    wait(duration)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+end
+
+local function equipTool(toolName)
+    local tool = player.Backpack:FindFirstChild(toolName)
+    if tool then
+        tool.Parent = player.Character
+    end
+end
+
+local function unequipTool()
+    local character = player.Character
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = player.Backpack
+        end
+    end
+end
+
+local function activateSkills()
+    unequipTool()
+
+    -- Activate "Lion's Slash"
+    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
+    if lionSlashTool and not lionSlashTool.Name:match("%d") then
+        equipTool("Lion's Slash")
+        for _ = 1, 3 do
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+        end
+        wait(1)  -- Wait for Lion's Slash to fully activate
+        unequipTool()
+    end
+
+    -- Wait 1 second, then activate "Nadeshiko Field" by holding the LMB for 10 seconds
+    wait(1)
+    local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
+    if nadeshikoTool and not nadeshikoTool.Name:match("%d") then
+        equipTool("Nadeshiko Field")
+        simulateHoldClick(10)  -- Hold LMB for 10 seconds
+        unequipTool()
+    end
+
+    -- Re-equip the katana
+    equipTool(punchToolName)
+    lastSkillUse = tick()  -- Update last skill use time
+end
+
+local function takeQuest()
+    sendNotification("Quest", "Attempting to retake quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for _ = 1, 4 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+                wait(1)
+            end
+            sendNotification("Quest", "Quest successfully retaken.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
+end
+
+local function completeQuest()
+    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for i = 1, 2 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                    wait(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+            end
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            wait(1)
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            sendNotification("Quest", "Quest completed successfully.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
+end
+
 local function respawnCharacter()
     if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
@@ -83,68 +194,26 @@ local function isQuestCompleted()
     return questProgressPath and questProgressPath.Progress.ContentText == "3/3"
 end
 
-local function equipTool(toolName)
-    local tool = player.Backpack:FindFirstChild(toolName)
-    if tool then
-        tool.Parent = player.Character
-    end
-end
+local function attackEnemy(enemy)
+    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
-local function unequipTool()
-    local character = player.Character
-    for _, tool in ipairs(character:GetChildren()) do
-        if tool:IsA("Tool") then
-            tool.Parent = player.Backpack
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+
+        -- Use skills first if cooldown has passed
+        if tick() - lastSkillUse > 5 then  -- Adjust cooldown duration if needed
+            activateSkills()
         end
+
+        -- Equip katana for standard attack
+        equipTool(punchToolName)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+        wait(0.1)
     end
 end
-
-local function equipTool(toolName)
-    local tool = player.Backpack:FindFirstChild(toolName)
-    if tool then
-        unequipTool()  -- Ensure no other tool is equipped
-        tool.Parent = player.Character
-    end
-end
-
-local function activateSkills()
-    -- First, activate Lion's Slash if available
-    local lionSkill = player.Backpack:FindFirstChild(skillNames[1])
-    if lionSkill and not lionSkill.Name:match("%d") then
-        equipTool(skillNames[1])
-        
-        -- Activate Lion's Slash with clicks
-        for _ = 1, 3 do
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
-            wait(0.1)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
-        end
-        lastSkillUse = tick()  -- Update last skill use time
-
-        -- Unequip after use
-        unequipTool()
-        
-        -- Wait 1 second before activating Nadeshiko Field
-        wait(1)
-        
-        -- Check for and activate Nadeshiko Field if available
-        local nadeshikoSkillTool = player.Backpack:FindFirstChild(nadeshikoSkill)
-        if nadeshikoSkillTool and not nadeshikoSkillTool.Name:match("%d") then
-            equipTool(nadeshikoSkill)
-
-            -- Hold LMB to activate Nadeshiko Field for 10 seconds
-            local VirtualInputManager = game:GetService("VirtualInputManager")
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            wait(10)
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-
-            -- Unequip after use
-            unequipTool()
-        end
-    end
-end
-
--- The remaining functions (respawnCharacter, hasQuest, takeQuest, completeQuest, attackEnemy, etc.) are the same as before
 
 spawn(function()
     while true do
