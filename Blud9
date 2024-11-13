@@ -55,8 +55,8 @@ local function sendDiscordNotification(status, details)
             },
             Body = jsonData
         })
-    end)
-end
+    end
+end)
 
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
