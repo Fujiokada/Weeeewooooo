@@ -86,22 +86,8 @@ local function isNadeshikoFieldActive()
     return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
--- Function to check if character is close enough to enemy before activating skills
-local function isCloseEnough(enemy, maxDistance)
-    local character = player.Character
-    if character and character:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("PrimaryPart") then
-        local distance = (character.HumanoidRootPart.Position - enemy.PrimaryPart.Position).Magnitude
-        return distance <= maxDistance
-    end
-    return false
-end
-
--- Updated activateSkills function to include distance check
-local function activateSkills(enemy)
-    if not isCloseEnough(enemy, 10) then
-        return  -- Exit if not close enough
-    end
-
+-- Updated skill activation to only activate Nadeshiko Field if it's not already active
+local function activateSkills()
     unequipTool()
 
     -- Activate "Lion's Slash"
@@ -140,7 +126,6 @@ local function activateSkills(enemy)
     equipTool(punchToolName)
     lastSkillUse = tick()
 end
-
 
 -- Updated function to wait for Nadeshiko Field to finish before completing quest
 local function completeQuest()
@@ -235,17 +220,21 @@ local function isQuestCompleted()
     return questProgress and questProgress.Progress.ContentText == "3/3"
 end
 
--- Updated attackEnemy function to pass enemy to activateSkills
+-- Update attack function to check if Nadeshiko Field is active before teleporting to each enemy
 local function attackEnemy(enemy)
+    while isNadeshikoFieldActive() do
+        wait(0.5)
+    end
+
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Use skills after teleporting to each new enemy and check distance
+        -- Use skills after teleporting to each new enemy
         if tick() - lastSkillUse > 5 then
-            activateSkills(enemy)
+            activateSkills()
         end
 
         equipTool(punchToolName)
@@ -255,6 +244,7 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 end
+
 -- Main loop with additional Nadeshiko Field checks
 spawn(function()
     while true do
