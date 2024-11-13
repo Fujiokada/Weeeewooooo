@@ -65,6 +65,11 @@ local function simulateHoldClick(duration)
     VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
 end
 
+local function releaseClick()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+end
+
 local function equipTool(toolName)
     local tool = player.Backpack:FindFirstChild(toolName)
     if tool then
@@ -86,74 +91,26 @@ local function isNadeshikoFieldActive()
     return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
--- Check if Nadeshiko Field is on cooldown by verifying tool availability or cooldown indicator
-local function isNadeshikoOnCooldown()
-    local tool = player.Backpack:FindFirstChild("Nadeshiko Field") or player.Character:FindFirstChild("Nadeshiko Field")
-    if tool and tool:FindFirstChild("Cooldown") then
-        local cooldownValue = tonumber(tool.Cooldown.Value)
-        return cooldownValue and cooldownValue > 0
-    end
-    return false
-end
-
--- Find enemies in range of Nadeshiko Field
-local function getEnemiesInField()
-    local field = workspace.debrisHolder:FindFirstChild("NadeshikoField")
-    if not field then return {} end
-
-    local enemiesInField = {}
+local function getEnemiesInField(fieldPosition, fieldSize)
+    local enemiesInRange = {}
     for _, enemy in ipairs(aiCharacters:GetChildren()) do
         if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-            local distance = (enemy.PrimaryPart.Position - field.Position).magnitude
-            if distance <= 106 then  -- Half of field's size for radius check
-                table.insert(enemiesInField, enemy)
+            local enemyPosition = enemy.PrimaryPart.Position
+            if (fieldPosition - enemyPosition).Magnitude <= fieldSize.X / 2 then
+                table.insert(enemiesInRange, enemy)
             end
         end
     end
-    return enemiesInField
+    return enemiesInRange
 end
 
--- Activate Nadeshiko Field based on enemy status
-local function activateNadeshikoField()
+local function activateSkills(currentEnemy)
     local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
-    if not nadeshikoTool then return end
+    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
 
-    equipTool("Nadeshiko Field")
-    local isClickHeld = false
-
-    while not isNadeshikoOnCooldown() do
-        local enemiesInField = getEnemiesInField()
-        
-        if #enemiesInField == 0 then
-            if isClickHeld then
-                game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-                isClickHeld = false
-            end
-            break
-        end
-
-        if not isClickHeld then
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-            isClickHeld = true
-        end
-
-        wait(0.1)
-    end
-
-    if isClickHeld then
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-    end
-
-    equipTool(punchToolName)
-    lastSkillUse = tick()
-end
-
--- Activate skills and hold Nadeshiko Field if needed
-local function activateSkills()
     unequipTool()
 
-    -- Activate "Lion's Slash"
-    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
+    -- Activate "Lion's Slash" without health condition
     if lionSlashTool then
         equipTool("Lion's Slash")
         for _ = 1, 3 do
@@ -161,12 +118,47 @@ local function activateSkills()
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
         end
-        wait(1)
+        wait(1)  -- Wait for Lion's Slash to activate
         unequipTool()
     end
 
-    -- Activate "Nadeshiko Field" if it's not on cooldown
-    activateNadeshikoField()
+    -- Check and activate Nadeshiko Field if available
+    if nadeshikoTool and not isNadeshikoFieldActive() then
+        equipTool("Nadeshiko Field")
+        local fieldPosition = workspace.debrisHolder.NadeshikoField.Field.Position
+        local holdDuration = 10  -- Max hold time for Nadeshiko Field
+        local startTime = tick()
+
+        while tick() - startTime < holdDuration do
+            if isNadeshikoFieldActive() then
+                local enemiesInField = getEnemiesInField(fieldPosition, Vector3.new(212, 212, 212))
+                
+                -- Release if no enemies with health > 0 in the field
+                if #enemiesInField == 0 then
+                    break
+                end
+
+                simulateHoldClick(0.1)  -- Hold click briefly to keep the skill active
+            else
+                break
+            end
+        end
+
+        releaseClick()  -- Release click to deactivate Nadeshiko Field
+        unequipTool()
+    end
+
+    equipTool(punchToolName)
+    lastSkillUse = tick()
+end
+
+-- Additional check for teleport prevention when Nadeshiko Field is active
+local function teleportToPositionIfNadeshikoInactive(position)
+    if not isNadeshikoFieldActive() then
+        player.Character:SetPrimaryPartCFrame(CFrame.new(position))
+    else
+        sendNotification("Teleport", "Teleportation blocked due to Nadeshiko Field.")
+    end
 end
 
 local function completeQuest()
@@ -261,16 +253,18 @@ local function isQuestCompleted()
     return questProgress and questProgress.Progress.ContentText == "3/3"
 end
 
--- Updated attackEnemy to call activateNadeshikoField based on the current enemy
+-- Updated attackEnemy function to pass the enemy to activateSkills for health check
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
+    -- Exit combat if Nadeshiko Field becomes active
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isNadeshikoFieldActive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
+        -- Use skills after teleporting to each new enemy, pass enemy for health check
         if tick() - lastSkillUse > 5 then
-            activateSkills()
+            activateSkills(enemy)  -- Pass the enemy to check its health for Nadeshiko Field
         end
 
         equipTool(punchToolName)
@@ -278,6 +272,11 @@ local function attackEnemy(enemy)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
         wait(0.1)
+    end
+
+    -- Stop combat if Nadeshiko Field activates
+    if isNadeshikoFieldActive() then
+        sendNotification("Combat", "Combat paused due to Nadeshiko Field activation.")
     end
 end
 
