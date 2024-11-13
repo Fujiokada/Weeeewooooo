@@ -169,15 +169,6 @@ local function activateSkills()
     activateNadeshikoField()
 end
 
--- Additional check for teleport prevention when Nadeshiko Field is active
-local function teleportToPositionIfNadeshikoInactive(position)
-    if not isNadeshikoFieldActive() then
-        player.Character:SetPrimaryPartCFrame(CFrame.new(position))
-    else
-        sendNotification("Teleport", "Teleportation blocked due to Nadeshiko Field.")
-    end
-end
-
 local function completeQuest()
     while isNadeshikoFieldActive() do
         wait(0.5)
@@ -287,12 +278,6 @@ local function attackEnemy(enemy)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
         wait(0.1)
-    end
-end
-
-    -- Stop combat if Nadeshiko Field activates
-    if isNadeshikoFieldActive() then
-        sendNotification("Combat", "Combat paused due to Nadeshiko Field activation.")
     end
 end
 
