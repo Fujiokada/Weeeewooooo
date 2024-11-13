@@ -81,35 +81,44 @@ local function unequipTool()
     end
 end
 
--- Function to check for multiple enemies in the Nadeshiko Field range
-local function getEnemiesInField()
-    local field = workspace.debrisHolder:FindFirstChild("NadeshikoField")
-    if not field then return {} end
-
-    local enemiesInField = {}
-    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-            local enemyPosition = enemy.PrimaryPart.Position
-            if (enemyPosition - field.Position).Magnitude <= 106 then  -- Half of field size (212/2)
-                table.insert(enemiesInField, enemy)
-            end
-        end
-    end
-    return enemiesInField
-end
-
 -- Function to check if Nadeshiko Field is active
 local function isNadeshikoFieldActive()
     return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
--- Update activateSkills function with enemy health check for Nadeshiko Field
-local function activateSkills()
-    -- Check if Nadeshiko Field is already active or on cooldown
+local function activateSkills(currentEnemy)
+    local shouldUseNadeshiko = false
     local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
-    local canActivateNadeshiko = nadeshikoTool and not isNadeshikoFieldActive()
 
-    -- Activate "Lion's Slash" without any condition
+    -- Check if Nadeshiko Field can be used based on enemy health
+    if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
+        local humanoid = currentEnemy.Humanoid
+        local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+        shouldUseNadeshiko = healthPercentage > 0  -- Ensure it's used while enemy is alive
+    end
+
+    -- Only activate if Nadeshiko Field tool is available and cooldown is not active
+    if shouldUseNadeshiko and nadeshikoTool and not isNadeshikoFieldActive() then
+        equipTool("Nadeshiko Field")
+        
+        -- Simulate holding down the skill with VirtualInputManager until enemies are dead
+        local startTime = tick()
+        local holdDuration = 10  -- Maximum time to hold, due to cooldown
+
+        while tick() - startTime < holdDuration do
+            -- Check if any enemies remain in the field and that the skill is still held
+            if not isNadeshikoFieldActive() or not areEnemiesInField() then
+                break  -- Release hold if no enemies remain or field deactivates
+            end
+            
+            simulateHoldClick(0.1)  -- Hold-click briefly and check again
+            wait(0.1)
+        end
+
+        unequipTool()
+    end
+
+    -- Activate "Lion's Slash" as a backup skill
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
     if lionSlashTool then
         equipTool("Lion's Slash")
@@ -122,29 +131,25 @@ local function activateSkills()
         unequipTool()
     end
 
-    -- Activate Nadeshiko Field if it’s available
-    if canActivateNadeshiko then
-        equipTool("Nadeshiko Field")
-        local holdStart = tick()
-
-        -- Hold Nadeshiko Field until all enemies in the field are dead or cooldown is triggered
-        while tick() - holdStart < 10 do
-            local enemiesInField = getEnemiesInField()
-            if #enemiesInField == 0 or isNadeshikoFieldActive() == false then
-                break
-            end
-            -- Keep holding the field
-            simulateHoldClick(0.1)
-        end
-
-        -- Release the Nadeshiko Field
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-        unequipTool()
-    end
-
-    -- Equip main weapon after skill use
+    -- Re-equip primary weapon for regular attacks
     equipTool(punchToolName)
     lastSkillUse = tick()
+end
+
+-- Function to check if enemies remain in the Nadeshiko Field
+local function areEnemiesInField()
+    local field = workspace.debrisHolder:FindFirstChild("NadeshikoField")
+    if field then
+        for _, enemy in ipairs(aiCharacters:GetChildren()) do
+            if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                local distance = (enemy.PrimaryPart.Position - field.Position).Magnitude
+                if distance <= 106 then  -- Half of 212 size of the field
+                    return true  -- An enemy is within the field range
+                end
+            end
+        end
+    end
+    return false
 end
 
 -- Additional check for teleport prevention when Nadeshiko Field is active
