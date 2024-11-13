@@ -55,6 +55,17 @@ local function sendDiscordNotification(status, details)
             },
             Body = jsonData
         })
+    end)
+
+local enableLogging = false  -- Set to 'true' if you want to enable console logging
+
+if success then
+    if enableLogging then
+        print("Discord notification sent: " .. status)
+    end
+else
+    if enableLogging then
+        warn("Failed to send Discord notification: " .. tostring(response))
     end
 end
 
