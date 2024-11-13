@@ -125,8 +125,9 @@ local function activateSkills(currentEnemy)
                 if isNadeshikoFieldActive() then
                     break
                 end
-                simulateHoldClick(10)  -- Short click hold to check activation status
+                simulateHoldClick(0.1)  -- Short click hold to check activation status
             end
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
             wait(0.5)
             unequipTool()
         end
