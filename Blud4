@@ -33,31 +33,6 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
-local function createFloatingPlatform()
-    local character = player.Character
-    if character and not character:FindFirstChild(floatName) then
-        local Float = Instance.new('Part')
-        Float.Name = floatName
-        Float.Parent = character
-        Float.Transparency = 1
-        Float.Size = Vector3.new(2, 0.2, 1.5)
-        Float.Anchored = true
-        local FloatValue = -3.1
-
-        local function FloatPadLoop()
-            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
-                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
-            else
-                Float:Destroy()
-            end
-            wait(0.2)
-        end
-
-        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
-        sendNotification("Platform", "Floating platform created under character.")
-    end
-end
-
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
@@ -81,47 +56,56 @@ local function unequipTool()
     end
 end
 
--- Check if Nadeshiko Field is active
+-- Function to check if Nadeshiko Field is active
 local function isNadeshikoFieldActive()
     return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
--- Update skill activation to avoid holding LMB if Nadeshiko Field fails to activate
+-- Updated skill activation to only activate Nadeshiko Field if it's not already active
 local function activateSkills()
     unequipTool()
 
     -- Activate "Lion's Slash"
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
-    if lionSlashTool and not lionSlashTool.Name:match("%d") then
+    if lionSlashTool then
         equipTool("Lion's Slash")
         for _ = 1, 3 do
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         end
-        wait(1)  -- Wait for Lion's Slash to fully activate
+        wait(1)  -- Wait for Lion's Slash to activate
         unequipTool()
     end
 
-    -- Wait 1 second, then activate "Nadeshiko Field" if it is not active
+    -- Activate "Nadeshiko Field" only if it's not already active
     if not isNadeshikoFieldActive() then
-        wait(1)
         local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
-        if nadeshikoTool and not nadeshikoTool.Name:match("%d") then
+        if nadeshikoTool then
             equipTool("Nadeshiko Field")
-            simulateHoldClick(10)  -- Hold LMB for 10 seconds
+            local holdDuration = 10  -- Hold LMB for 10 seconds
+            local startTime = tick()
+
+            -- Simulate holding the click, but stop if Nadeshiko Field activates
+            while tick() - startTime < holdDuration do
+                if isNadeshikoFieldActive() then
+                    break
+                end
+                simulateHoldClick(0.1)  -- Short click hold to check activation status
+            end
+
             unequipTool()
         end
     end
 
-    -- Re-equip the katana
     equipTool(punchToolName)
-    lastSkillUse = tick()  -- Update last skill use time
+    lastSkillUse = tick()
 end
 
+-- Updated function to wait for Nadeshiko Field to finish before completing quest
 local function completeQuest()
     while isNadeshikoFieldActive() do
-        wait(0.5)  -- Wait until the skill is inactive
+        wait(0.5)
     end
     sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
@@ -153,9 +137,10 @@ local function completeQuest()
     end
 end
 
+-- Update quest retake function to wait for Nadeshiko Field to finish
 local function takeQuest()
     while isNadeshikoFieldActive() do
-        wait(0.5)  -- Wait until the skill is inactive
+        wait(0.5)
     end
     sendNotification("Quest", "Attempting to retake quest...")
     player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
@@ -191,12 +176,11 @@ local function attackEnemy(enemy)
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Use skills first if cooldown has passed
-        if tick() - lastSkillUse > 5 and not isNadeshikoFieldActive() then  -- Adjust cooldown duration if needed
+        -- Use skills after teleporting to each new enemy
+        if tick() - lastSkillUse > 5 then
             activateSkills()
         end
 
-        -- Equip katana for standard attack
         equipTool(punchToolName)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
@@ -204,7 +188,6 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 end
-
 -- Main loop
 spawn(function()
     while true do
