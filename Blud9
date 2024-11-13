@@ -154,7 +154,7 @@ local function activateSkills(currentEnemy)
         local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
         if nadeshikoTool then
             equipTool("Nadeshiko Field")
-            local holdDuration = 10  -- Hold LMB for 10 seconds
+            local holdDuration = 5  -- Hold LMB for 10 seconds
             local startTime = tick()
 
             -- Simulate holding the click, but stop if Nadeshiko Field activates
