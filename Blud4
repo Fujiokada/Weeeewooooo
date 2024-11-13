@@ -33,6 +33,31 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        local FloatValue = -3.1
+
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+            wait(0.2)
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        sendNotification("Platform", "Floating platform created under character.")
+    end
+end
+
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
@@ -167,6 +192,32 @@ local function takeQuest()
     else
         sendNotification("Error", "Quest NPC not found in workspace!")
     end
+end
+
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
+    end
+end
+
+local function hasQuest()
+    -- Check if the player currently has the target quest
+    local quest = questHolder:FindFirstChild("Quest")
+    if quest and quest:FindFirstChild("QuestName") then
+        return quest.QuestName.ContentText == targetQuestName
+    end
+    return false
+end
+
+local function isQuestCompleted()
+    -- Check if the quest progress indicates completion (3/3)
+    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    return questProgress and questProgress.Progress.ContentText == "3/3"
 end
 
 local function attackEnemy(enemy)
