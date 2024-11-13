@@ -72,21 +72,22 @@ local function equipTool(toolName)
     end
 end
 
-local function unequipTool()
-    local character = player.Character
-    for _, tool in ipairs(character:GetChildren()) do
-        if tool:IsA("Tool") then
-            tool.Parent = player.Backpack
-        end
-    end
-end
-
 -- Function to check if Nadeshiko Field is active
 local function isNadeshikoFieldActive()
     return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
--- Function to check if enemies are within Nadeshiko Field's range and alive
+-- Check if Nadeshiko Field is on cooldown by verifying tool availability or cooldown indicator
+local function isNadeshikoOnCooldown()
+    local tool = player.Backpack:FindFirstChild("Nadeshiko Field") or player.Character:FindFirstChild("Nadeshiko Field")
+    if tool and tool:FindFirstChild("Cooldown") then
+        local cooldownValue = tonumber(tool.Cooldown.Value)
+        return cooldownValue and cooldownValue > 0
+    end
+    return false
+end
+
+-- Find enemies in range of Nadeshiko Field
 local function getEnemiesInField()
     local field = workspace.debrisHolder:FindFirstChild("NadeshikoField")
     if not field then return {} end
@@ -95,7 +96,7 @@ local function getEnemiesInField()
     for _, enemy in ipairs(aiCharacters:GetChildren()) do
         if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
             local distance = (enemy.PrimaryPart.Position - field.Position).magnitude
-            if distance <= 106 then  -- 106 is half of field's size (212) for radius check
+            if distance <= 106 then  -- Half of field's size for radius check
                 table.insert(enemiesInField, enemy)
             end
         end
@@ -103,21 +104,46 @@ local function getEnemiesInField()
     return enemiesInField
 end
 
--- Function to check if Nadeshiko Field skill is on cooldown
-local function isNadeshikoOnCooldown()
-    local tool = player.Backpack:FindFirstChild("Nadeshiko Field") or player.Character:FindFirstChild("Nadeshiko Field")
-    if tool and tool:FindFirstChild("Cooldown") then
-        local cooldownValue = tonumber(tool.Cooldown.Value)
-        return cooldownValue and cooldownValue > 0  -- Returns true if cooldown is active
+-- Activate Nadeshiko Field based on enemy status
+local function activateNadeshikoField()
+    local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
+    if not nadeshikoTool then return end
+
+    equipTool("Nadeshiko Field")
+    local isClickHeld = false
+
+    while not isNadeshikoOnCooldown() do
+        local enemiesInField = getEnemiesInField()
+        
+        if #enemiesInField == 0 then
+            if isClickHeld then
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+                isClickHeld = false
+            end
+            break
+        end
+
+        if not isClickHeld then
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            isClickHeld = true
+        end
+
+        wait(0.1)
     end
-    return false  -- Not on cooldown if tool is not in cooldown state
+
+    if isClickHeld then
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+    end
+
+    equipTool(punchToolName)
+    lastSkillUse = tick()
 end
 
--- Updated activateSkills to hold Nadeshiko Field until all enemies in range are dead or cooldown starts
+-- Activate skills and hold Nadeshiko Field if needed
 local function activateSkills()
     unequipTool()
 
-    -- Activate "Lion's Slash" as before
+    -- Activate "Lion's Slash"
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
     if lionSlashTool then
         equipTool("Lion's Slash")
@@ -130,141 +156,18 @@ local function activateSkills()
         unequipTool()
     end
 
-    -- Activate and hold "Nadeshiko Field" while enemies in range are alive and not on cooldown
-    local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
-    if nadeshikoTool and not isNadeshikoFieldActive() and not isNadeshikoOnCooldown() then
-        equipTool("Nadeshiko Field")
-        
-        -- Begin holding down the click for Nadeshiko Field
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-
-        -- Hold the skill while enemies in the field have health > 0
-        while not isNadeshikoOnCooldown() do
-            local enemiesInField = getEnemiesInField()
-            if #enemiesInField == 0 then
-                break  -- Stop if no more enemies are alive in the field
-            end
-            wait(0.1)  -- Short wait to repeatedly check enemies' status in the field
-        end
-
-        -- Release the click to stop Nadeshiko Field
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-    end
-
-    equipTool(punchToolName)
-    lastSkillUse = tick()
+    -- Activate "Nadeshiko Field" if it's not on cooldown
+    activateNadeshikoField()
 end
 
--- Additional check for teleport prevention when Nadeshiko Field is active
-local function teleportToPositionIfNadeshikoInactive(position)
-    if not isNadeshikoFieldActive() then
-        player.Character:SetPrimaryPartCFrame(CFrame.new(position))
-    else
-        sendNotification("Teleport", "Teleportation blocked due to Nadeshiko Field.")
-    end
-end
-
-local function completeQuest()
-    while isNadeshikoFieldActive() do
-        wait(0.5)
-    end
-    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
-    teleportToPositionIfNadeshikoInactive(questNPCPosition)
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for i = 1, 2 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                    wait(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
-                end
-            end
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            wait(1)
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            sendNotification("Quest", "Quest completed successfully.")
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
-end
-
--- Update quest retake function to wait for Nadeshiko Field to finish
-local function takeQuest()
-    while isNadeshikoFieldActive() do
-        wait(0.5)
-    end
-    sendNotification("Quest", "Attempting to retake quest...")
-    teleportToPositionIfNadeshikoInactive(teleportPosition)
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for _ = 1, 4 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
-                end
-                wait(1)
-            end
-            sendNotification("Quest", "Quest successfully retaken.")
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        spawnRemote:FireServer(1)
-        wait(2)
-        createFloatingPlatform()
-        sendNotification("Character Status", "Character respawned successfully.")
-    end
-end
-
-local function hasQuest()
-    -- Check if the player currently has the target quest
-    local quest = questHolder:FindFirstChild("Quest")
-    if quest and quest:FindFirstChild("QuestName") then
-        return quest.QuestName.ContentText == targetQuestName
-    end
-    return false
-end
-
-local function isQuestCompleted()
-    -- Check if the quest progress indicates completion (3/3)
-    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    return questProgress and questProgress.Progress.ContentText == "3/3"
-end
-
--- Modified attackEnemy to call activateSkills for managing multiple enemies in the field
+-- Updated attackEnemy to call activateNadeshikoField based on the current enemy
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isNadeshikoFieldActive() do
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Use skills after teleporting to each new enemy
         if tick() - lastSkillUse > 5 then
             activateSkills()
         end
