@@ -60,9 +60,9 @@ end
 
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
     wait(duration)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
 end
 
 local function equipTool(toolName)
