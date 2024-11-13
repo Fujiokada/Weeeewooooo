@@ -7,7 +7,7 @@ local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
 local punchToolName = "Katana"
-local skillNames = {"Lion's Slash", "Nadeshiko Field"}
+local skillNames = {"Lion's Slash", "Nadeshiko Field"}  -- Added Nadeshiko Field
 local teleportPosition = Vector3.new(232, 3, -703)
 local questNPCPosition = Vector3.new(232, 3, -703)
 local autoClickPosition = Vector2.new(903, 478)
@@ -18,7 +18,6 @@ local toggle = false
 local lastSkillUse = 0
 local isCharacterAliveFlag = false
 local HealthFlag = true
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local function sendNotification(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -32,55 +31,6 @@ local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
     return isCharacterAliveFlag
-end
-
-local function createFloatingPlatform()
-    local character = player.Character
-    if character and not character:FindFirstChild(floatName) then
-        local Float = Instance.new('Part')
-        Float.Name = floatName
-        Float.Parent = character
-        Float.Transparency = 1
-        Float.Size = Vector3.new(2, 0.2, 1.5)
-        Float.Anchored = true
-        local FloatValue = -3.1
-
-        local function FloatPadLoop()
-            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
-                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
-            else
-                Float:Destroy()
-            end
-            wait(0.2)
-        end
-
-        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
-        sendNotification("Platform", "Floating platform created under character.")
-    end
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        spawnRemote:FireServer(1)
-        wait(2)
-        createFloatingPlatform()
-        sendNotification("Character Status", "Character respawned successfully.")
-    end
-end
-
-local function hasQuest()
-    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
-        local questName = questHolder.Quest.QuestName.ContentText
-        return questName == targetQuestName
-    end
-    return false
-end
-
-local function isQuestCompleted()
-    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    return questProgressPath and questProgressPath.Progress.ContentText == "3/3"
 end
 
 local function equipTool(toolName)
@@ -99,101 +49,43 @@ local function unequipTool()
     end
 end
 
--- Function to hold left mouse button
+-- Function to hold and release left mouse button
 local function simulateHoldClick(duration)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-    wait(duration)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0) -- Hold LMB
+    wait(duration) -- Hold duration (10 seconds)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) -- Release LMB
 end
 
 local function activateSkills()
-    unequipTool()  -- Make sure the katana is unequipped first
+    unequipTool()  -- Ensure no tool is equipped initially
     
     for _, skillName in ipairs(skillNames) do
         local skillTool = player.Backpack:FindFirstChild(skillName)
-        
-        if skillTool and not skillTool.Name:match("%d") then
-            equipTool(skillName)
+        if skillTool and not skillTool.Name:match("%d") then  -- Check for cooldown on name
+            equipTool(skillName)  -- Equip the skill
 
             if skillName == "Lion's Slash" then
-                -- Click to activate Lion's Slash
+                -- Click auto-click position to activate Lion's Slash
                 for _ = 1, 3 do
-                    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
                     wait(0.1)
-                    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
                 end
-                
-                wait(2)  -- Wait 1 second before activating Nadeshiko Field
+                wait(1)  -- Wait 1 second before Nadeshiko Field
+
+                -- Unequip Lion's Slash before Nadeshiko Field
+                unequipTool()
             elseif skillName == "Nadeshiko Field" then
-                -- Activate Nadeshiko Field by holding LMB for 15 seconds
-                simulateHoldClick(15)
+                -- Activate Nadeshiko Field by holding LMB for 10 seconds
+                simulateHoldClick(10)
+                
+                -- Unequip Nadeshiko Field after the hold
+                unequipTool()
             end
-
-            wait(3)  -- Wait a bit to ensure the skill has completed
-            unequipTool()  -- Ensure the tool is unequipped after use
         end
     end
-    lastSkillUse = tick()  -- Update the last use time if skill was successfully used
-end
-
-
-local function takeQuest()
-    sendNotification("Quest", "Attempting to retake quest...")
-    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for _ = 1, 4 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
-                end
-                wait(1)
-            end
-            sendNotification("Quest", "Quest successfully retaken.")
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
-end
-
-local function completeQuest()
-    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
-    player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for i = 1, 2 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                    wait(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
-                end
-            end
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            wait(1)
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            sendNotification("Quest", "Quest completed successfully.")
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
+    lastSkillUse = tick()  -- Update last use time if skill was successfully used
 end
 
 local function attackEnemy(enemy)
