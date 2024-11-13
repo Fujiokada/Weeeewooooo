@@ -286,7 +286,6 @@ local function attackEnemy(enemy)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
         wait(0.1)
     end
-end
 
     -- Stop combat if Nadeshiko Field activates
     if isNadeshikoFieldActive() then
