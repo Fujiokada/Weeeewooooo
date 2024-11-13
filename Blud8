@@ -94,7 +94,7 @@ local function activateSkills(currentEnemy)
     if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
         local humanoid = currentEnemy.Humanoid
         local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-        shouldUseNadeshiko = healthPercentage > 20  -- Only use Nadeshiko Field if health > 20%
+        shouldUseNadeshiko = healthPercentage > 30 
     end
 
     unequipTool()
