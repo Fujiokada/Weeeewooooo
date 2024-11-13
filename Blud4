@@ -81,6 +81,43 @@ local function unequipTool()
     end
 end
 
+-- Update skill activation to avoid holding LMB if Nadeshiko Field fails to activate
+local function activateSkills()
+    unequipTool()
+
+    -- Activate "Lion's Slash"
+    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
+    if lionSlashTool and not lionSlashTool.Name:match("%d") then
+        equipTool("Lion's Slash")
+        for _ = 1, 3 do
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+        end
+        wait(1)  -- Wait for Lion's Slash to fully activate
+        unequipTool()
+    end
+
+    -- Wait 1 second, then activate "Nadeshiko Field" by holding the LMB for 10 seconds
+    wait(1)
+    local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
+    if nadeshikoTool and not nadeshikoTool.Name:match("%d") then
+        equipTool("Nadeshiko Field")
+        simulateHoldClick(10)  -- Hold LMB for 10 seconds
+        unequipTool()
+    end
+
+    -- Re-equip the katana
+    equipTool(punchToolName)
+    lastSkillUse = tick()  -- Update last skill use time
+end
+
+-- Check if Nadeshiko Field is active
+local function isNadeshikoFieldActive()
+    return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
+end
+
+-- Update skill activation to avoid holding LMB if Nadeshiko Field fails to activate
 local function activateSkills()
     unequipTool()
     
@@ -97,61 +134,20 @@ local function activateSkills()
         unequipTool()
     end
 
-    -- Activate "Nadeshiko Field" only if it isn't already active
+    -- Attempt to activate "Nadeshiko Field" only if it is not already active
     if not isNadeshikoFieldActive() then
         local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
         if nadeshikoTool and not nadeshikoTool.Name:match("%d") then
             equipTool("Nadeshiko Field")
-            simulateHoldClick(10)  -- Hold LMB for 10 seconds only if needed
+            simulateHoldClick(10)  -- Hold LMB for 10 seconds to activate
             unequipTool()
         end
     end
 
-    -- Re-equip the katana for standard attacks
+    -- Re-equip the katana after attempting skill activations
     equipTool(punchToolName)
-    lastSkillUse = tick()
+    lastSkillUse = tick()  -- Update last skill use time
 end
-
--- Check if Nadeshiko Field is active
-local function isNadeshikoFieldActive()
-    return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
-end
-
--- Update quest completion and retake to wait until Nadeshiko Field is inactive
-local function completeQuest()
-    while isNadeshikoFieldActive() do
-        wait(0.5)  -- Wait until the skill is inactive
-    end
-    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
-    player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for i = 1, 2 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                    wait(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
-                end
-            end
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            wait(1)
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            sendNotification("Quest", "Quest completed successfully.")
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
-end
-
 
 local function takeQuest()
     while isNadeshikoFieldActive() do
@@ -210,26 +206,30 @@ local function isQuestCompleted()
     return questProgress and questProgress.Progress.ContentText == "3/3"
 end
 
+-- Attack enemy and wait for "Nadeshiko Field" to finish before proceeding
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
-    -- Activate skills near the enemy and check if cooldown has passed
-    if tick() - lastSkillUse > 5 then
-        activateSkills()
-    end
-
-    -- Set position for attacking the enemy
-    local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
-    player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
-
-    -- Main attack loop
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
-        -- Equip katana and perform standard attack
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+
+        -- Use skills first if cooldown has passed and "Nadeshiko Field" is not active
+        if tick() - lastSkillUse > 5 then  -- Adjust cooldown duration if needed
+            activateSkills()
+        end
+
+        -- Equip katana for standard attack
         equipTool(punchToolName)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
         wait(0.1)
+    end
+
+    -- Wait for "Nadeshiko Field" to deactivate before moving to a new enemy
+    while isNadeshikoFieldActive() do
+        wait(0.5)
     end
 end
 
