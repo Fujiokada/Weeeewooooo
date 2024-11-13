@@ -57,13 +57,6 @@ local function sendDiscordNotification(status, details)
         })
     end)
 
-    if success then
-        print("Discord notification sent: " .. status)
-    else
-        warn("Failed to send Discord notification: " .. tostring(response))
-    end
-end
-
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
