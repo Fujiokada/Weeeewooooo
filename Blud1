@@ -1,1 +1,272 @@
+local player = game:GetService("Players").LocalPlayer
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
+local aiCharacters = workspace:WaitForChild("AiCharacters")
+local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+local targetQuestName = "Defeat Strong Souls"
+local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local punchToolName = "Katana"
+local skillNames = {"Lion's Slash", "Nadeshiko Field"}
+local teleportPosition = Vector3.new(232, 3, -703)
+local questNPCPosition = Vector3.new(232, 3, -703)
+local autoClickPosition = Vector2.new(903, 478)
+local floatName = "FloatingPlatform"
+local StarterGui = game:GetService("StarterGui")
+local toggle = false
 
+local lastSkillUse = 0
+local isCharacterAliveFlag = false
+local HealthFlag = true
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local function sendNotification(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 2;
+    })
+end
+
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild("Venqtrix")
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
+    return isCharacterAliveFlag
+end
+
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        local FloatValue = -3.1
+
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+            wait(0.2)
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        sendNotification("Platform", "Floating platform created under character.")
+    end
+end
+
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
+    end
+end
+
+local function hasQuest()
+    if questHolder:FindFirstChild("Quest") and questHolder.Quest:FindFirstChild("QuestName") then
+        local questName = questHolder.Quest.QuestName.ContentText
+        return questName == targetQuestName
+    end
+    return false
+end
+
+local function isQuestCompleted()
+    local questProgressPath = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    return questProgressPath and questProgressPath.Progress.ContentText == "3/3"
+end
+
+local function equipTool(toolName)
+    local tool = player.Backpack:FindFirstChild(toolName)
+    if tool then
+        tool.Parent = player.Character
+    end
+end
+
+local function unequipTool()
+    local character = player.Character
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = player.Backpack
+        end
+    end
+end
+
+-- Function to hold left mouse button
+local function simulateHoldClick(duration)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+    wait(duration)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+end
+
+local function activateSkills()
+    unequipTool()  -- Make sure the katana is unequipped first
+    
+    for _, skillName in ipairs(skillNames) do
+        local skillTool = player.Backpack:FindFirstChild(skillName)
+        
+        if skillTool and not skillTool.Name:match("%d") then
+            equipTool(skillName)
+
+            if skillName == "Lion's Slash" then
+                -- Click to activate Lion's Slash
+                for _ = 1, 3 do
+                    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+                    wait(0.1)
+                    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+                end
+                
+                wait(1)  -- Wait 1 second before activating Nadeshiko Field
+            elseif skillName == "Nadeshiko Field" then
+                -- Activate Nadeshiko Field by holding LMB for 15 seconds
+                simulateHoldClick(15)
+            end
+
+            wait(3)  -- Wait a bit to ensure the skill has completed
+            unequipTool()  -- Ensure the tool is unequipped after use
+        end
+    end
+    lastSkillUse = tick()  -- Update the last use time if skill was successfully used
+end
+
+
+local function takeQuest()
+    sendNotification("Quest", "Attempting to retake quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for _ = 1, 4 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+                wait(1)
+            end
+            sendNotification("Quest", "Quest successfully retaken.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
+end
+
+local function completeQuest()
+    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
+    wait(1)
+
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for i = 1, 2 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                    wait(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+            end
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            wait(1)
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            sendNotification("Quest", "Quest completed successfully.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
+        end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
+    end
+end
+
+local function attackEnemy(enemy)
+    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+
+        -- Use skills first if available (no cooldown on name)
+        activateSkills()
+
+        -- Then equip katana for standard attack
+        equipTool(punchToolName)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, nil, 0)
+        wait(0.1)
+    end
+end
+
+spawn(function()
+    while true do
+        if toggle then
+            if not isCharacterAlive() then
+                HealthFlag = false
+                respawnCharacter()
+            else
+                HealthFlag = true
+            end
+
+            if HealthFlag then
+                if not hasQuest() then
+                    sendNotification("Quest", "No active quest, attempting to start quest.")
+                    takeQuest()
+                    wait(1)
+                end
+
+                if hasQuest() and isQuestCompleted() then
+                    sendNotification("Quest", "Quest completed, turning in.")
+                    completeQuest()
+                    wait(1)
+                    takeQuest()
+                    wait(1)
+                end
+
+                if hasQuest() then
+                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            for _, targetName in ipairs(targetEnemies) do
+                                if enemy.Name:find(targetName) then
+                                    attackEnemy(enemy)
+                                    if isQuestCompleted() then
+                                        completeQuest()
+                                        takeQuest()
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        wait(0.1)
+    end
+end)
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.T then
+            toggle = not toggle
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+        end
+    end
+end)
