@@ -81,11 +81,10 @@ local function unequipTool()
     end
 end
 
--- Update skill activation to avoid holding LMB if Nadeshiko Field fails to activate
 local function activateSkills()
     unequipTool()
     
-    -- Activate "Lion's Slash" if not on cooldown
+    -- Activate "Lion's Slash"
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
     if lionSlashTool and not lionSlashTool.Name:match("%d") then
         equipTool("Lion's Slash")
@@ -97,28 +96,21 @@ local function activateSkills()
         wait(1)  -- Wait for Lion's Slash to fully activate
         unequipTool()
     end
-    
-    -- Only activate "Nadeshiko Field" if it's not already active
-    wait(1)
+
+    -- Activate "Nadeshiko Field" only if it isn't already active
     if not isNadeshikoFieldActive() then
         local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
         if nadeshikoTool and not nadeshikoTool.Name:match("%d") then
             equipTool("Nadeshiko Field")
-            
-            -- Hold LMB for 2 seconds first to check if it activates
-            simulateHoldClick(2)
-            if not isNadeshikoFieldActive() then
-                simulateHoldClick(8)  -- Continue holding if activation succeeded
-            end
+            simulateHoldClick(10)  -- Hold LMB for 10 seconds only if needed
             unequipTool()
         end
     end
 
-    -- Re-equip the katana
+    -- Re-equip the katana for standard attacks
     equipTool(punchToolName)
-    lastSkillUse = tick()  -- Update last skill use time
+    lastSkillUse = tick()
 end
-
 
 -- Check if Nadeshiko Field is active
 local function isNadeshikoFieldActive()
@@ -221,16 +213,18 @@ end
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
+    -- Activate skills near the enemy and check if cooldown has passed
+    if tick() - lastSkillUse > 5 then
+        activateSkills()
+    end
+
+    -- Set position for attacking the enemy
+    local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
+    player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
+
+    -- Main attack loop
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag do
-        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
-        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
-
-        -- Use skills first if cooldown has passed
-        if tick() - lastSkillUse > 5 then  -- Adjust cooldown duration if needed
-            activateSkills()
-        end
-
-        -- Equip katana for standard attack
+        -- Equip katana and perform standard attack
         equipTool(punchToolName)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, nil, 0)
         wait(0.1)
@@ -238,6 +232,7 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 end
+
 -- Main loop
 spawn(function()
     while true do
