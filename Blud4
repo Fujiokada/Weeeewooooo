@@ -204,3 +204,64 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 end
+
+-- Main loop
+spawn(function()
+    while true do
+        if toggle then
+            if not isCharacterAlive() then
+                HealthFlag = false
+                respawnCharacter()
+            else
+                HealthFlag = true
+            end
+
+            if HealthFlag then
+                -- Start or retake the quest if no active quest is found
+                if not hasQuest() then
+                    sendNotification("Quest", "No active quest, attempting to start quest.")
+                    takeQuest()
+                    wait(1)
+                end
+
+                -- If the quest is completed, turn it in and retake it
+                if hasQuest() and isQuestCompleted() then
+                    sendNotification("Quest", "Quest completed, turning in.")
+                    completeQuest()
+                    wait(1)
+                    takeQuest() -- Retake quest immediately after completion
+                    wait(1)
+                end
+
+                -- Find and attack target enemies if the quest is active
+                if hasQuest() and not isQuestCompleted() then
+                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            for _, targetName in ipairs(targetEnemies) do
+                                if enemy.Name:find(targetName) then
+                                    attackEnemy(enemy)
+                                    -- Check quest completion status after each enemy
+                                    if isQuestCompleted() then
+                                        completeQuest()
+                                        takeQuest()
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        wait(0.1)
+    end
+end)
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.T then
+            toggle = not toggle
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+        end
+    end
+end)
