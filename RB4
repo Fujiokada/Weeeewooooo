@@ -81,22 +81,21 @@ local function monitorHealth()
                     
                     -- Start monitoring for the 'Customizations' folder removal (indicating death)
                     spawn(function()
-                        while true do
-                            wait(0.1)
-                            local character = workspace:FindFirstChild(player.Name)
-                            
-                            -- Only proceed if character is valid
-                            if character and character.Parent then
-                                if not character:FindFirstChild("Customizations") then
-                                    wait(0.5)  -- Delay before respawning
+                        -- Only proceed if character is valid
+                        if character and character.Parent then
+                           if not character:FindFirstChild("Customizations") then
+                               wait(0.5)  -- Delay before respawning
+                               if respawnCharacter then  -- Ensure respawnCharacter is defined
                                     respawnCharacter()
-                                    HealthFlag = true  -- Re-enable health monitoring and combat
-                                    break
+                                  HealthFlag = true  -- Re-enable health monitoring and combat
+                              else
+                                   warn("respawnCharacter function not defined")
                                 end
-                            else
-                                -- Exit if character is nil to avoid nil access issues
                                 break
                             end
+                        else
+                              break
+                           end
                         end
                     end)
                 end
