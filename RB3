@@ -258,10 +258,12 @@ local function completeQuest()
         local prompt = npc:FindFirstChild("ProximityPrompt")
         if prompt then
             fireproximityprompt(prompt)
-            wait(1)  -- Wait for dialogue UI to load
+            wait(0.5)  -- Short delay to allow dialogue UI to load
 
+            -- Check the dialogue type before proceeding
             local dialogueType = detectDialogueType()
             if dialogueType == "Completion" then
+                -- Now proceed with firing the remote calls for quest completion
                 for i = 1, 2 do
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
@@ -277,7 +279,7 @@ local function completeQuest()
                 sendNotification("Quest", "Quest completed successfully.")
                 sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
             else
-                sendNotification("Error", "Incorrect dialogue type detected for quest completion!")
+                sendNotification("Error", "Quest completion dialogue not detected!")
             end
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
@@ -300,10 +302,12 @@ local function takeQuest()
         local prompt = npc:FindFirstChild("ProximityPrompt")
         if prompt then
             fireproximityprompt(prompt)
-            wait(1)  -- Wait for dialogue UI to load
+            wait(0.5)  -- Short delay to allow dialogue UI to load
 
+            -- Check the dialogue type before proceeding
             local dialogueType = detectDialogueType()
             if dialogueType == "Taking" then
+                -- Now proceed with firing the remote calls for quest taking/retaking
                 for _ = 1, 4 do
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
@@ -316,7 +320,7 @@ local function takeQuest()
                 sendNotification("Quest", "Quest successfully retaken.")
                 sendDiscordNotification("Quest Retaken", "Venqtrix has retaken the quest 'Defeat Strong Souls'.")
             else
-                sendNotification("Error", "Incorrect dialogue type detected for quest taking!")
+                sendNotification("Error", "Quest taking dialogue not detected!")
             end
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
