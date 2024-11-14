@@ -234,21 +234,6 @@ local function teleportToPositionIfNadeshikoInactive(position)
     end
 end
 
--- Function to detect dialogue type
-local function detectDialogueType()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local dialogueFrame = playerGui.GameUI.Dialogue.ScrollingFrame
-        if dialogueFrame:FindFirstChild("ActiveQuest") then
-            return "QuestCompletion"
-        elseif dialogueFrame:FindFirstChild("AvailableQuests") then
-            return "QuestTaking"
-        end
-    end
-    return nil  -- No dialogue found or unidentified type
-end
-
--- Modified completeQuest function
 local function completeQuest()
     while isNadeshikoFieldActive() do
         wait(0.5)
@@ -262,11 +247,13 @@ local function completeQuest()
         local prompt = npc:FindFirstChild("ProximityPrompt")
         if prompt then
             fireproximityprompt(prompt)
-            wait(0.5)  -- Allow time for the dialogue to appear
-            
-            -- Check dialogue type for quest completion
-            local dialogueType = detectDialogueType()
-            if dialogueType == "QuestCompletion" then
+            wait(0.5)
+
+            -- Dialogue Differentiation
+            local dialogueFrame = player.PlayerGui.GameUI.Dialogue.ScrollingFrame
+            if dialogueFrame:FindFirstChild("ActiveQuest") then
+                -- Quest Completion Dialogue
+                sendNotification("Quest", "Detected quest completion dialogue.")
                 for i = 1, 2 do
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
@@ -282,7 +269,7 @@ local function completeQuest()
                 sendNotification("Quest", "Quest completed successfully.")
                 sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
             else
-                sendNotification("Error", "Unexpected dialogue type for quest completion.")
+                sendNotification("Error", "Expected quest completion dialogue not found!")
             end
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
@@ -292,7 +279,6 @@ local function completeQuest()
     end
 end
 
--- Modified takeQuest function
 local function takeQuest()
     while isNadeshikoFieldActive() do
         wait(0.5)
@@ -306,11 +292,13 @@ local function takeQuest()
         local prompt = npc:FindFirstChild("ProximityPrompt")
         if prompt then
             fireproximityprompt(prompt)
-            wait(0.5)  -- Allow time for the dialogue to appear
+            wait(0.5)
 
-            -- Check dialogue type for quest taking/retaking
-            local dialogueType = detectDialogueType()
-            if dialogueType == "QuestTaking" then
+            -- Dialogue Differentiation
+            local dialogueFrame = player.PlayerGui.GameUI.Dialogue.ScrollingFrame
+            if dialogueFrame:FindFirstChild("AvailableQuests") then
+                -- Quest Taking/Retaking Dialogue
+                sendNotification("Quest", "Detected quest taking/retaking dialogue.")
                 for _ = 1, 4 do
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
@@ -323,7 +311,7 @@ local function takeQuest()
                 sendNotification("Quest", "Quest successfully retaken.")
                 sendDiscordNotification("Quest Retaken", "Venqtrix has retaken the quest 'Defeat Strong Souls'.")
             else
-                sendNotification("Error", "Unexpected dialogue type for quest taking/retaking.")
+                sendNotification("Error", "Expected quest taking/retaking dialogue not found!")
             end
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
@@ -332,7 +320,6 @@ local function takeQuest()
         sendNotification("Error", "Quest NPC not found in workspace!")
     end
 end
-
 
 local function respawnCharacter()
     if not isCharacterAlive() then
