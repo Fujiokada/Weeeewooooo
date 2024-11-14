@@ -58,6 +58,7 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
+-- Monitor health and reset character if health falls below 30%
 local function monitorHealth()
     local character = player.Character
     if character and character:FindFirstChild("Humanoid") then
@@ -67,8 +68,8 @@ local function monitorHealth()
             -- Pause main functionalities by setting HealthFlag to false
             HealthFlag = false
 
-            -- Reset character by destroying Humanoid
-            character.Humanoid:Destroy()
+            -- Set character health to 0 for resetting
+            character.Humanoid.Health = 0
 
             -- Respawn character
             respawnCharacter()
