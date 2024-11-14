@@ -251,7 +251,7 @@ local function completeQuest()
 
             -- Dialogue Differentiation
             local dialogueFrame = player.PlayerGui.GameUI.Dialogue.ScrollingFrame
-            if dialogueFrame:FindFirstChild("ActiveQuest") then
+            if dialogueFrame:FindFirstChild("AvailableQuests") then
                 -- Quest Completion Dialogue
                 sendNotification("Quest", "Detected quest completion dialogue.")
                 for i = 1, 2 do
@@ -296,7 +296,7 @@ local function takeQuest()
 
             -- Dialogue Differentiation
             local dialogueFrame = player.PlayerGui.GameUI.Dialogue.ScrollingFrame
-            if dialogueFrame:FindFirstChild("AvailableQuests") then
+            if dialogueFrame:FindFirstChild("ActiveQuest") then
                 -- Quest Taking/Retaking Dialogue
                 sendNotification("Quest", "Detected quest taking/retaking dialogue.")
                 for _ = 1, 4 do
