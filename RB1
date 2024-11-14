@@ -14,6 +14,7 @@ local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
+local respawnDelay = 0.5  -- Time to wait before rechecking for respawn
 
 local lastSkillUse = 0
 local isCharacterAliveFlag = false
@@ -59,9 +60,15 @@ local function sendDiscordNotification(status, details)
 end
 
 local function isCharacterAlive()
-    local character = workspace:FindFirstChild("Venqtrix")
-    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
-    return isCharacterAliveFlag
+    -- Check if the customizations folder exists to determine if the character is alive
+    return workspace:FindFirstChild(player.Name) and workspace[player.Name]:FindFirstChild("Customizations")
+end
+
+local function waitForRespawn()
+    -- Wait for the character to respawn based on the Customizations folder existence
+    while not isCharacterAlive() do
+        task.wait(respawnDelay)  -- Wait and recheck if the character has respawned
+    end
 end
 
 local function createFloatingPlatform()
@@ -340,6 +347,7 @@ spawn(function()
             if not isCharacterAlive() then
                 HealthFlag = false
                 respawnCharacter()
+                waitForRespawn()
             else
                 HealthFlag = true
             end
