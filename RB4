@@ -82,7 +82,7 @@ local function monitorHealth()
                     
                     -- Start monitoring for the 'Customizations' folder removal (indicating death)
                     spawn(function()
-                        while true do
+                        while respawnInProgress do
                             wait(0.1)
                             local character = workspace:FindFirstChild(player.Name)
                             
@@ -91,8 +91,7 @@ local function monitorHealth()
                                 if not character:FindFirstChild("Customizations") then
                                     wait(0.5)  -- Delay before respawning
                                     respawnCharacter()
-                                    HealthFlag = true  -- Re-enable health monitoring and combat
-                                    respawnInProgress = false  -- Reset the flag after respawn
+                                    HealthFlag = true  -- Re-enable health monitoring
                                     break
                                 end
                             else
@@ -106,7 +105,6 @@ local function monitorHealth()
         end
     end)
 end
-
 
 monitorHealth()
 
