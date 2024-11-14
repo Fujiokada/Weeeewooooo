@@ -58,28 +58,6 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
--- Monitor health and reset character if health falls below 30%
-local function monitorHealth()
-    local character = player.Character
-    if character and character:FindFirstChild("Humanoid") then
-        local health = character.Humanoid.Health
-        local maxHealth = character.Humanoid.MaxHealth
-        if health / maxHealth < 0.3 then
-            -- Pause main functionalities by setting HealthFlag to false
-            HealthFlag = false
-
-            -- Set character health to 0 for resetting
-            character.Humanoid.Health = 0
-
-            -- Respawn character
-            respawnCharacter()
-
-            -- Resume functionalities after respawn
-            HealthFlag = true
-        end
-    end
-end
-
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
@@ -309,6 +287,44 @@ local function respawnCharacter()
         end
     end
 end
+
+-- Health Monitoring and Auto-Respawn System
+local function monitorHealth()
+    spawn(function()
+        while true do
+            wait(0.1)
+            
+            -- Check if character is alive and health monitoring is active
+            if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag then
+                local humanoid = player.Character.Humanoid
+                if humanoid.Health <= humanoid.MaxHealth * 0.3 then
+                    HealthFlag = false  -- Temporarily disable health monitoring to avoid re-triggering
+
+                    -- Set health to 0 to reset character
+                    humanoid.Health = 0
+                    
+                    -- Start monitoring for the 'Customizations' folder removal (indicating death)
+                    spawn(function()
+                        while true do
+                            wait(0.1)
+                            local character = workspace:FindFirstChild(player.Name)
+                            
+                            -- Check if 'Customizations' has disappeared from character
+                            if character and not character:FindFirstChild("Customizations") then
+                                wait(0.5)  -- Delay before respawning
+                                respawnCharacter()
+                                HealthFlag = true  -- Re-enable health monitoring
+                                break
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+monitorHealth()
 
 local function hasQuest()
     -- Check if the player currently has the target quest
