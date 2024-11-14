@@ -64,6 +64,26 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+-- Health monitoring and forced respawn function
+local function monitorHealthAndRespawn()
+    local character = player.Character
+    if character and character:FindFirstChild("Humanoid") then
+        local health = character.Humanoid.Health
+        local maxHealth = character.Humanoid.MaxHealth
+        if health / maxHealth < 0.3 and HealthFlag then
+            HealthFlag = false  -- Disable other functions while respawning
+            sendNotification("Health", "Health is low. Resetting character...")
+
+            -- Trigger respawn
+            character:BreakJoints()  -- Force reset
+            wait(3)  -- Allow time for character to respawn
+            respawnCharacter()  -- Call respawn logic to confirm character is back
+
+            HealthFlag = true  -- Re-enable script functions
+        end
+    end
+end
+
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -315,19 +335,15 @@ local function attackEnemy(enemy)
     end
 end
 
--- Main loop with additional Nadeshiko Field checks
+-- Main loop with health monitoring
 spawn(function()
     while true do
         if toggle then
+            -- Monitor health and respawn if necessary
+            monitorHealthAndRespawn()
+            
             -- Check if character is alive and needs to respawn
-            if not isCharacterAlive() then
-                HealthFlag = false
-                respawnCharacter()
-            else
-                HealthFlag = true
-            end
-
-            if HealthFlag then
+            if isCharacterAlive() and HealthFlag then
                 -- If no active quest, start or retake the quest
                 if not hasQuest() and not isNadeshikoFieldActive() then
                     sendNotification("Quest", "No active quest, attempting to start quest.")
