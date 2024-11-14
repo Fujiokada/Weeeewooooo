@@ -58,30 +58,31 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
-local function isCharacterAlive()
-    local character = workspace:FindFirstChild("Venqtrix")
-    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
-    return isCharacterAliveFlag
-end
-
--- Health monitoring and forced respawn function
-local function monitorHealthAndRespawn()
+local function monitorHealth()
     local character = player.Character
     if character and character:FindFirstChild("Humanoid") then
         local health = character.Humanoid.Health
         local maxHealth = character.Humanoid.MaxHealth
-        if health / maxHealth < 0.3 and HealthFlag then
-            HealthFlag = false  -- Disable other functions while respawning
-            sendNotification("Health", "Health is low. Resetting character...")
+        if health / maxHealth < 0.3 then
+            -- Pause main functionalities by setting HealthFlag to false
+            HealthFlag = false
 
-            -- Trigger respawn
-            character:BreakJoints()  -- Force reset
-            wait(3)  -- Allow time for character to respawn
-            respawnCharacter()  -- Call respawn logic to confirm character is back
+            -- Reset character by destroying Humanoid
+            character.Humanoid:Destroy()
 
-            HealthFlag = true  -- Re-enable script functions
+            -- Respawn character
+            respawnCharacter()
+
+            -- Resume functionalities after respawn
+            HealthFlag = true
         end
     end
+end
+
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild("Venqtrix")
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
+    return isCharacterAliveFlag
 end
 
 local function createFloatingPlatform()
@@ -142,60 +143,61 @@ local function isSkillOnCooldown(tool)
     return tool and tool.Name:match("%d+")
 end
 
--- Function to activate skill with cooldown checking
-local function tryActivateSkill(toolName)
-    local tool = player.Backpack:FindFirstChild(toolName)
-    if tool and not isSkillOnCooldown(tool) then
-        equipTool(toolName)
-        for _ = 1, 3 do
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-            wait(0.5)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-        end
-        wait(1)  -- Wait for skill activation
-        unequipTool()
-    end
-end
-
+-- Updated activateSkills function to include health check for Conqueror's Will
 local function activateSkills(currentEnemy)
+    -- Check if the enemy's health is above 30% before using Nadeshiko Field and Conqueror's Will
     local shouldUseNadeshiko = false
+    local shouldUseConqueror = false
 
     if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
         local humanoid = currentEnemy.Humanoid
         local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
         shouldUseNadeshiko = healthPercentage > 30 
+        shouldUseConqueror = healthPercentage > 30  -- Only use Conqueror's Will if health > 30%
     end
 
     unequipTool()
 
-    -- Attempt to activate "Lion's Slash" until on cooldown
+    -- Activate "Conqueror's Will" if the enemy's health is above 30%
+    local conquerorWillTool = player.Backpack:FindFirstChild("Conqueror's Will")
+    if shouldUseConqueror and conquerorWillTool then
+        equipTool("Conqueror's Will")
+        while not conquerorWillTool.Name:match("%d") do  -- Retry until on cooldown
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+            wait(0.5)
+        end
+        unequipTool()
+    end
+
+    -- Activate "Lion's Slash" if available, with cooldown check
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
     if lionSlashTool then
-        repeat
-            tryActivateSkill("Lion's Slash")
-            wait(1)
-        until isSkillOnCooldown(lionSlashTool)
+        equipTool("Lion's Slash")
+        while not lionSlashTool.Name:match("%d") do  -- Retry until on cooldown
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+            wait(0.5)
+        end
+        unequipTool()
     end
 
-    -- Attempt to activate "Conqueror's Will" with 60s cooldown
-    local conquerorsWillTool = player.Backpack:FindFirstChild("Conqueror's Will")
-    if conquerorsWillTool then
-        repeat
-            tryActivateSkill("Conqueror's Will")
-            wait(1)
-        until isSkillOnCooldown(conquerorsWillTool)
-    end
-
+    -- Activate "Nadeshiko Field" only if the enemy's health is above 30% and it's not already active
     if shouldUseNadeshiko and not isNadeshikoFieldActive() then
         local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
         if nadeshikoTool then
             equipTool("Nadeshiko Field")
-            local holdDuration = 5
+            local holdDuration = 5  -- Hold LMB for 5 seconds
             local startTime = tick()
 
+            -- Simulate holding the click, but stop if Nadeshiko Field activates
             while tick() - startTime < holdDuration do
-                if isNadeshikoFieldActive() then break end
-                simulateHoldClick(0.1)
+                if isNadeshikoFieldActive() then
+                    break
+                end
+                simulateHoldClick(0.1)  -- Short click hold to check activation status
             end
 
             unequipTool()
@@ -286,10 +288,24 @@ local function respawnCharacter()
     if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
         wait(2)
+        
+        -- Trigger respawn
         spawnRemote:FireServer(1)
-        wait(2)
-        createFloatingPlatform()
-        sendNotification("Character Status", "Character respawned successfully.")
+        
+        -- Wait until character respawns
+        local maxWaitTime = 5  -- Maximum wait time to avoid infinite loop
+        local startTime = tick()
+        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
+            wait(0.5)  -- Check every 0.5 seconds
+        end
+        
+        -- Confirm respawn and create floating platform if character is detected
+        if isCharacterAlive() then
+            createFloatingPlatform()
+            sendNotification("Character Status", "Character respawned successfully.")
+        else
+            sendNotification("Character Status", "Respawn failed. Character still not detected.")
+        end
     end
 end
 
@@ -335,15 +351,22 @@ local function attackEnemy(enemy)
     end
 end
 
--- Main loop with health monitoring
+-- Main loop with additional health monitoring and existing functionality
 spawn(function()
     while true do
         if toggle then
-            -- Monitor health and respawn if necessary
-            monitorHealthAndRespawn()
-            
-            -- Check if character is alive and needs to respawn
-            if isCharacterAlive() and HealthFlag then
+            -- Run health monitor to check if reset is needed
+            monitorHealth()
+
+            -- If character is dead, respawn
+            if not isCharacterAlive() then
+                HealthFlag = false
+                respawnCharacter()
+            else
+                HealthFlag = true
+            end
+
+            if HealthFlag then
                 -- If no active quest, start or retake the quest
                 if not hasQuest() and not isNadeshikoFieldActive() then
                     sendNotification("Quest", "No active quest, attempting to start quest.")
