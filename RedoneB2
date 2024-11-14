@@ -18,6 +18,7 @@ local toggle = false
 local lastSkillUse = 0
 local lastConquerorsWillUse = 0  -- Track Conqueror's Will cooldown
 local lastLionSlashUse = 0       -- Track Lion's Slash cooldown
+local lastNadeshikoUse = 0       -- Track Nadeshiko Field cooldown
 local isCharacterAliveFlag = false
 local HealthFlag = true
 
@@ -156,31 +157,29 @@ local function activateConquerorsWill()
     end
 end
 
--- Function to activate Nadeshiko Field with cooldown check and teleport delay
-local function activateNadeshikoField(currentEnemy)
+-- Function to activate Nadeshiko Field with cooldown check and 1-second delay after teleporting
+local function activateNadeshikoField()
     local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
-    
-    -- Ensure Nadeshiko Field only activates 1 second after teleporting to enemy
-    if nadeshikoTool and not isToolOnCooldown(nadeshikoTool) and (tick() - lastTeleportTime >= 1) then
+    if nadeshikoTool and not isToolOnCooldown(nadeshikoTool) then
+        wait(1)  -- Delay activation to ensure teleportation is complete
         equipTool("Nadeshiko Field")
-        local holdDuration = 5  -- Hold LMB for up to 5 seconds
+        local holdDuration = 5  -- Hold LMB for 5 seconds
         local startTime = tick()
 
-        -- Simulate holding the click, but stop if Nadeshiko Field activates
-        while tick() - startTime < holdDuration do
-            if isNadeshikoFieldActive() then
-                break
-            end
-            simulateHoldClick(0.1)  -- Short click hold to check activation status
-        end
+        repeat
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+        until isToolOnCooldown(nadeshikoTool) or (tick() - startTime >= holdDuration)
 
         unequipTool()
+        lastNadeshikoUse = tick()  -- Set the cooldown timestamp
     end
 end
 
--- Updated activateSkills function to use Nadeshiko delay and cooldown check
+-- Updated activateSkills function to include cooldown check for each skill
 local function activateSkills(currentEnemy)
-    -- Check if the enemy's health is above 30% before using Nadeshiko Field
+    -- Check if the enemy's health is above 20% before using Nadeshiko Field
     local shouldUseNadeshiko = false
 
     if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
@@ -191,19 +190,19 @@ local function activateSkills(currentEnemy)
 
     unequipTool()
 
-    -- Activate "Lion's Slash" with cooldown check
+    -- Activate "Lion's Slash" with cooldown check and retry mechanism
     if tick() - lastLionSlashUse > 5 then
         activateLionsSlash()
     end
 
-    -- Activate "Conqueror's Will" with cooldown check
+    -- Activate "Conqueror's Will" with cooldown check and retry mechanism
     if tick() - lastConquerorsWillUse > 60 then
         activateConquerorsWill()
     end
 
-    -- Activate "Nadeshiko Field" if conditions are met and cooldown allows
-    if shouldUseNadeshiko then
-        activateNadeshikoField(currentEnemy)
+    -- Activate "Nadeshiko Field" only if it's not already active and enemy health > 20%
+    if shouldUseNadeshiko and tick() - lastNadeshikoUse > 60 then
+        activateNadeshikoField()
     end
 
     equipTool(punchToolName)
@@ -312,7 +311,7 @@ local function isQuestCompleted()
     return questProgress and questProgress.Progress.ContentText == "3/3"
 end
 
--- Updated attackEnemy function to set teleport time and delay Nadeshiko activation
+-- Updated attackEnemy function with a delay before activating Nadeshiko Field
 local function attackEnemy(enemy)
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
@@ -321,10 +320,10 @@ local function attackEnemy(enemy)
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Set teleport time to delay Nadeshiko activation
-        lastTeleportTime = tick()
+        -- Wait 1 second before using Nadeshiko Field after teleporting to the enemy
+        wait(1)
 
-        -- Use skills after teleporting to each new enemy
+        -- Use skills after teleporting to each new enemy, pass enemy for health check
         if tick() - lastSkillUse > 5 then
             activateSkills(enemy)
         end
@@ -341,9 +340,6 @@ local function attackEnemy(enemy)
         sendNotification("Combat", "Combat paused due to Nadeshiko Field activation.")
     end
 end
-
--- Initialize lastTeleportTime variable to track the teleport time
-local lastTeleportTime = 0
 
 -- Main loop with additional Nadeshiko Field checks
 spawn(function()
