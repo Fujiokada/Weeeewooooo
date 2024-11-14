@@ -1,111 +1,79 @@
 local player = game:GetService("Players").LocalPlayer
-local replicatedStorage = game:GetService("ReplicatedStorage")
 local workspace = game:GetService("Workspace")
-local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
-local aiCharacters = workspace:WaitForChild("AiCharacters")
-local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+local starterGui = game:GetService("StarterGui")
+local httpService = game:GetService("HttpService")
+local virtualInputManager = game:GetService("VirtualInputManager")
+
+local webhookURL = "YOUR_WEBHOOK_URL"  -- Replace with your actual webhook URL
+
+local toggle = false
+local floatName = "FloatPlatform"
 local targetQuestName = "Defeat Strong Souls"
 local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
-local punchToolName = "Katana"
-local skillNames = {"Lion's Slash", "Nadeshiko Field", "Conqueror's Will"}
-local teleportPosition = Vector3.new(232, 3, -703)
 local questNPCPosition = Vector3.new(232, 3, -703)
-local autoClickPosition = Vector2.new(903, 478)
-local floatName = "FloatingPlatform"
-local StarterGui = game:GetService("StarterGui")
-local toggle = false
+local autoClickPosition = Vector2.new(1095, 530)
 
-local lastSkillUse = 0
-local isCharacterAliveFlag = false
-local HealthFlag = true
-
-local webhookURL = "https://discord.com/api/webhooks/1306244225725370471/wFVYW4SdmUMhvPOxqTY0VncLWLEtArsrGs3lnzSu38aKpHdlP84FD6IbcWCgqJ5Z1wyS"
-
+-- Send notification in Roblox
 local function sendNotification(title, text)
-    StarterGui:SetCore("SendNotification", {
+    starterGui:SetCore("SendNotification", {
         Title = title;
         Text = text;
         Duration = 2;
     })
 end
 
--- Discord webhook notifier
+-- Discord webhook notification
 local function sendDiscordNotification(status, details)
     local data = {
         ["username"] = "Quest Notifier",
         ["embeds"] = {{
             ["title"] = "**Quest Update: " .. status .. "**",
             ["description"] = details,
-            ["color"] = status == "Quest Completed" and 65280 or 16711680,  -- Green for completion, Red for retake
-            ["footer"] = {
-                ["text"] = "Roblox Quest Notifier",
-            },
-            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")  -- UTC time
+            ["color"] = status == "Quest Completed" and 65280 or 16711680, -- Green for completion, Red for retake
+            ["footer"] = {["text"] = "Roblox Quest Notifier"},
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
     }
-
-    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+    local jsonData = httpService:JSONEncode(data)
 
     pcall(function()
         syn.request({
             Url = webhookURL,
             Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
+            Headers = {["Content-Type"] = "application/json"},
             Body = jsonData
         })
     end)
 end
 
-local function isCharacterAlive()
-    local character = workspace:FindFirstChild("Venqtrix")
-    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
-    return isCharacterAliveFlag
-end
-
--- Health Monitoring and Auto-Respawn System
-local function monitorHealth()
-    spawn(function()
-        while true do
-            wait(0.1)
-            
-            -- Check if character is alive and health monitoring is active
-            if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag then
-                local humanoid = player.Character.Humanoid
-                if humanoid.Health <= humanoid.MaxHealth * 0.3 then
-                    HealthFlag = false  -- Temporarily disable health monitoring to avoid re-triggering
-
-                    -- Set health to 0 to reset character
-                    humanoid.Health = 0
-                    
-                    -- Start monitoring for the 'Customizations' folder removal (indicating death)
-                    spawn(function()
-                        while true do
-                            wait(0.1)
-                            local character = workspace:FindFirstChild(player.Name)
-                            
-                            -- Check if 'Customizations' has disappeared from character
-                            if character and not character:FindFirstChild("Customizations") then
-                                wait(0.5)  -- Delay before respawning
-                                respawnCharacter()
-                                HealthFlag = true  -- Re-enable health monitoring
-                                break
-                            end
-                        end
-                    end)
-                end
-            end
+-- Toggle autofarm
+userInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.T then
+            toggle = not toggle
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
         end
-    end)
+    end
+end)
+
+-- Check if character is alive and respawn if not
+local function ensureCharacterAlive()
+    if not workspace:FindFirstChild("Venqtrix") or not workspace.Venqtrix:FindFirstChild("Customizations") then
+        local args = {[1] = 1}
+        replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler"):FireServer(unpack(args))
+        createFloatingPlatform()
+        wait(2)
+    end
 end
 
-monitorHealth()
-
+-- Create floating platform
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
-        local Float = Instance.new('Part')
+        local Float = Instance.new("Part")
         Float.Name = floatName
         Float.Parent = character
         Float.Transparency = 1
@@ -121,19 +89,47 @@ local function createFloatingPlatform()
             end
             wait(0.2)
         end
-
-        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
-        sendNotification("Platform", "Floating platform created under character.")
+        runService.Heartbeat:Connect(FloatPadLoop)
     end
 end
 
-local function simulateHoldClick(duration)
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-    wait(duration)
-    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+-- Check if quest is available or complete
+local function checkQuestStatus()
+    local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+    if questHolder:FindFirstChild("Quest") and questHolder.Quest.QuestName.ContentText == targetQuestName then
+        return true
+    end
+    return false
 end
 
+-- Take or complete quest based on dialogue type
+local function handleQuestDialogue()
+    player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
+    wait(0.5)
+    fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
+    wait(0.5)
+
+    local dialogueFrame = player.PlayerGui.GameUI.Dialogue.ScrollingFrame
+    if dialogueFrame:FindFirstChild("ActiveQuest") then
+        sendNotification("Quest", "Completing quest...")
+        sendDiscordNotification("Quest Completed", "Defeated all required enemies.")
+        for i = 1, 3 do
+            local args = {[1] = i % 2 + 1}
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(unpack(args))
+            wait(0.5)
+        end
+    elseif dialogueFrame:FindFirstChild("AvailableQuest") then
+        sendNotification("Quest", "Taking or Retaking quest...")
+        sendDiscordNotification("Quest Retaken", "Quest retaken successfully.")
+        for _ = 1, 4 do
+            local args = {[1] = 1}
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(unpack(args))
+            wait(0.5)
+        end
+    end
+end
+
+-- Equip and unequip tools
 local function equipTool(toolName)
     local tool = player.Backpack:FindFirstChild(toolName)
     if tool then
@@ -142,319 +138,70 @@ local function equipTool(toolName)
 end
 
 local function unequipTool()
-    local character = player.Character
-    for _, tool in ipairs(character:GetChildren()) do
+    for _, tool in ipairs(player.Character:GetChildren()) do
         if tool:IsA("Tool") then
             tool.Parent = player.Backpack
         end
     end
 end
 
--- Function to check if Nadeshiko Field is active
-local function isNadeshikoFieldActive()
-    return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
-end
-
--- Function to check if a skill tool is on cooldown
+-- Check skill cooldown by name
 local function isSkillOnCooldown(tool)
     return tool and tool.Name:match("%d+")
 end
 
--- Updated activateSkills function to include health check for Conqueror's Will
-local function activateSkills(currentEnemy)
-    -- Check if the enemy's health is above 30% before using Nadeshiko Field and Conqueror's Will
-    local shouldUseNadeshiko = false
-    local shouldUseConqueror = false
+-- Combat function with skills and teleporting
+local function engageEnemies()
+    for _, enemy in ipairs(workspace.AiCharacters:GetChildren()) do
+        if table.find(targetEnemies, string.match(enemy.Name, "%a+")) then
+            repeat
+                equipTool("Katana")
+                player.Character:SetPrimaryPartCFrame(enemy.HumanoidRootPart.CFrame * CFrame.new(0, 0, -7))
+                virtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+                wait(0.5)
+                virtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
 
-    if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
-        local humanoid = currentEnemy.Humanoid
-        local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-        shouldUseNadeshiko = healthPercentage > 30 
-        shouldUseConqueror = healthPercentage > 30  -- Only use Conqueror's Will if health > 30%
-    end
-
-    unequipTool()
-
-    -- Activate "Conqueror's Will" if the enemy's health is above 30%
-    local conquerorWillTool = player.Backpack:FindFirstChild("Conqueror's Will")
-    if shouldUseConqueror and conquerorWillTool then
-        equipTool("Conqueror's Will")
-        while not conquerorWillTool.Name:match("%d") do  -- Retry until on cooldown
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-            wait(0.1)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-            wait(0.5)
-        end
-        unequipTool()
-    end
-
-    -- Activate "Lion's Slash" if available, with cooldown check
-    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
-    if lionSlashTool then
-        equipTool("Lion's Slash")
-        while not lionSlashTool.Name:match("%d") do  -- Retry until on cooldown
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-            wait(0.1)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-            wait(0.5)
-        end
-        unequipTool()
-    end
-
-    -- Activate "Nadeshiko Field" only if the enemy's health is above 30% and it's not already active
-    if shouldUseNadeshiko and not isNadeshikoFieldActive() then
-        local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
-        if nadeshikoTool then
-            equipTool("Nadeshiko Field")
-            local holdDuration = 5  -- Hold LMB for 5 seconds
-            local startTime = tick()
-
-            -- Simulate holding the click, but stop if Nadeshiko Field activates
-            while tick() - startTime < holdDuration do
-                if isNadeshikoFieldActive() then
-                    break
-                end
-                simulateHoldClick(0.1)  -- Short click hold to check activation status
-            end
-
-            unequipTool()
-        end
-    end
-
-    equipTool(punchToolName)
-    lastSkillUse = tick()
-end
-
--- Additional check for teleport prevention when Nadeshiko Field is active
-local function teleportToPositionIfNadeshikoInactive(position)
-    if not isNadeshikoFieldActive() then
-        player.Character:SetPrimaryPartCFrame(CFrame.new(position))
-    else
-        sendNotification("Teleport", "Teleportation blocked due to Nadeshiko Field.")
-    end
-end
-
-local function detectDialogueType()
-    local dialogueFrame = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.Dialogue.ScrollingFrame
-    if dialogueFrame:FindFirstChild("ActiveQuest") then
-        return "Completion"
-    elseif dialogueFrame:FindFirstChild("AvailableQuest") then
-        return "Taking"
-    else
-        return nil
-    end
-end
-
-local function completeQuest()
-    while isNadeshikoFieldActive() do
-        wait(0.5)
-    end
-    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
-    teleportToPositionIfNadeshikoInactive(questNPCPosition)
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            wait(0.5)  -- Short delay to allow dialogue UI to load
-
-            -- Check the dialogue type before proceeding
-            local dialogueType = detectDialogueType()
-            if dialogueType == "Completion" then
-                -- Now proceed with firing the remote calls for quest completion
-                for i = 1, 2 do
-                    if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                        wait(1)
-                    else
-                        sendNotification("Error", "DialogueHandler not found!")
-                        return
+                -- Use skills based on health and cooldowns
+                local enemyHealth = enemy.Humanoid.Health / enemy.Humanoid.MaxHealth
+                if not isSkillOnCooldown(player.Backpack:FindFirstChild("Lion's Slash")) then
+                    equipTool("Lion's Slash")
+                    for _ = 1, 5 do
+                        virtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+                        wait(0.1)
                     end
-                end
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                wait(1)
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                sendNotification("Quest", "Quest completed successfully.")
-                sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
-            else
-                sendNotification("Error", "Quest completion dialogue not detected!")
-            end
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
-end
-
-local function takeQuest()
-    while isNadeshikoFieldActive() do
-        wait(0.5)
-    end
-    sendNotification("Quest", "Attempting to retake quest...")
-    teleportToPositionIfNadeshikoInactive(teleportPosition)
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            wait(0.5)  -- Short delay to allow dialogue UI to load
-
-            -- Check the dialogue type before proceeding
-            local dialogueType = detectDialogueType()
-            if dialogueType == "Taking" then
-                -- Now proceed with firing the remote calls for quest taking/retaking
-                for _ = 1, 4 do
-                    if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                    else
-                        sendNotification("Error", "DialogueHandler not found!")
-                        return
-                    end
-                    wait(1)
-                end
-                sendNotification("Quest", "Quest successfully retaken.")
-                sendDiscordNotification("Quest Retaken", "Venqtrix has retaken the quest 'Defeat Strong Souls'.")
-            else
-                sendNotification("Error", "Quest taking dialogue not detected!")
-            end
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
-    end
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        
-        -- Trigger respawn
-        spawnRemote:FireServer(1)
-        
-        -- Wait until character respawns
-        local maxWaitTime = 5  -- Maximum wait time to avoid infinite loop
-        local startTime = tick()
-        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
-            wait(0.5)  -- Check every 0.5 seconds
-        end
-        
-        -- Confirm respawn and create floating platform if character is detected
-        if isCharacterAlive() then
-            createFloatingPlatform()
-        end
-    end
-end
-
-local function hasQuest()
-    -- Check if the player currently has the target quest
-    local quest = questHolder:FindFirstChild("Quest")
-    if quest and quest:FindFirstChild("QuestName") then
-        return quest.QuestName.ContentText == targetQuestName
-    end
-    return false
-end
-
-local function isQuestCompleted()
-    -- Check if the quest progress indicates completion (3/3)
-    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    return questProgress and questProgress.Progress.ContentText == "3/3"
-end
-
--- Updated attackEnemy function to pass the enemy to activateSkills for health check
-local function attackEnemy(enemy)
-    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-
-    -- Exit combat if Nadeshiko Field becomes active
-    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isNadeshikoFieldActive() do
-        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
-        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
-
-        -- Use skills after teleporting to each new enemy, pass enemy for health check
-        if tick() - lastSkillUse > 5 then
-            activateSkills(enemy)  -- Pass the enemy to check its health for Nadeshiko Field
-        end
-
-        equipTool(punchToolName)
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-        wait(0.1)
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-        wait(0.1)
-    end
-
-    -- Stop combat if Nadeshiko Field activates
-    if isNadeshikoFieldActive() then
-        sendNotification("Combat", "Combat paused due to Nadeshiko Field activation.")
-    end
-end
-
--- Main loop with additional health monitoring and existing functionality
-spawn(function()
-    while true do
-        if toggle then
-            -- Run health monitor to check if reset is needed
-            monitorHealth()
-
-            -- If character is dead, respawn
-            if not isCharacterAlive() then
-                HealthFlag = false
-                respawnCharacter()
-            else
-                HealthFlag = true
-            end
-
-            if HealthFlag then
-                -- If no active quest, start or retake the quest
-                if not hasQuest() and not isNadeshikoFieldActive() then
-                    sendNotification("Quest", "No active quest, attempting to start quest.")
-                    takeQuest()
-                    wait(1)
+                    unequipTool()
                 end
 
-                -- If quest is completed, turn it in and retake it
-                if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
-                    sendNotification("Quest", "Quest completed, turning in.")
-                    completeQuest()
-                    wait(1)
-                    takeQuest() -- Retake quest immediately after completion
-                    wait(1)
-                end
-
-                -- Find and attack target enemies if the quest is active and Nadeshiko Field isn't up
-                if hasQuest() and not isQuestCompleted() and not isNadeshikoFieldActive() then
-                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            for _, targetName in ipairs(targetEnemies) do
-                                if enemy.Name:find(targetName) then
-                                    attackEnemy(enemy)
-                                    -- Check quest completion status after each enemy
-                                    if isQuestCompleted() then
-                                        completeQuest()
-                                        takeQuest()
-                                        break
-                                    end
-                                end
-                            end
+                if enemyHealth > 0.3 then
+                    if not isSkillOnCooldown(player.Backpack:FindFirstChild("Nadeshiko Field")) then
+                        equipTool("Nadeshiko Field")
+                        virtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                        while enemy and enemy.Humanoid.Health > 0 do
+                            wait(0.1)
                         end
+                        virtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                        unequipTool()
+                    elseif not isSkillOnCooldown(player.Backpack:FindFirstChild("Conqueror's Field")) then
+                        equipTool("Conqueror's Field")
+                        for _ = 1, 5 do
+                            virtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+                            wait(0.1)
+                        end
+                        unequipTool()
                     end
                 end
-            end
+            until not enemy or enemy.Humanoid.Health <= 0
         end
-        wait(0.1)
     end
-end)
+end
 
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
-    if not gameProcessedEvent then
-        if input.KeyCode == Enum.KeyCode.T then
-            toggle = not toggle
-            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+-- Main autofarm loop
+while wait(1) do
+    if toggle then
+        ensureCharacterAlive()
+        if not checkQuestStatus() then
+            handleQuestDialogue()
         end
+        engageEnemies()
     end
-end)
+end
