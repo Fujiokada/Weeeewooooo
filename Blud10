@@ -163,7 +163,7 @@ local function activateSkills(currentEnemy)
     end
 
     -- Activate "Conqueror's Will" if 60 seconds have passed since last use
-    if tick() - lastConquerorsWillUse > 60 then
+    if tick() - lastConquerorsWillUse > 70 then
         activateConquerorsWill()
     end
 
