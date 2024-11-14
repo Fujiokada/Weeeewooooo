@@ -265,24 +265,22 @@ end
 
 local function respawnCharacter()
     if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, attempting respawn...")
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
         spawnRemote:FireServer(1)
-        wait(2)  -- Initial wait for respawn
-
-        local retries = 5  -- Max retry count
-        while retries > 0 and not isCharacterAlive() do
-            retries -= 1
-            wait(0.5)  -- Check every 0.5 seconds for Customizations folder
-        end
-
+        
+        -- Wait a short period to allow the character to fully respawn and then verify the character's status
+        wait(2)
         if isCharacterAlive() then
+            HealthFlag = true  -- Reset HealthFlag since character is alive
             createFloatingPlatform()
             sendNotification("Character Status", "Character respawned successfully.")
         else
-            sendNotification("Character Status", "Respawn failed after multiple attempts.")
+            sendNotification("Character Status", "Respawn attempt failed.")
         end
     end
 end
+
 
 local function hasQuest()
     -- Check if the player currently has the target quest
