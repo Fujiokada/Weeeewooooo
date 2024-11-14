@@ -59,21 +59,21 @@ local function sendDiscordNotification(race)
     end)
 end
 
--- Function to start spinning automatically
+-- Auto spinner function
 local function startAutoSpinner()
-    -- Monitor the race result by connecting to the "Changed" event of the spin result text
-    spinResultPath:GetPropertyChangedSignal("Text"):Connect(function()
+    while true do
+        -- Fire the spin remote
+        spinRemote:FireServer()
+        wait(0.1)  -- Small delay to prevent excessive spinning
+        
+        -- Check the spin result
         local currentRace = spinResultPath.Text
         if whitelistedRaces[currentRace] then
             sendNotification("Race Spin", "Obtained whitelisted race: " .. currentRace)
             sendDiscordNotification(currentRace)
-        else
-            spinRemote:FireServer()  -- Spin again immediately if race is not whitelisted
+            break  -- Stop spinning if a whitelisted race is obtained
         end
-    end)
-    
-    -- Fire the initial spin
-    spinRemote:FireServer()
+    end
 end
 
 -- Start the auto spinner
