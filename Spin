@@ -53,7 +53,7 @@ while spinning do
 
         -- Continuously check for ID within CurrentElement until it appears
         repeat
-            rolledRace = currentElement:FindFirstChild("ID") and currentElement.ID.Value or nil
+            rolledRace = currentElement:FindFirstChild("ID") and currentElement.ID.ContextName or nil
             wait(0.1)
         until rolledRace
 
