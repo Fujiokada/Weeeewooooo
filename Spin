@@ -64,7 +64,7 @@ local function startAutoSpinner()
     while true do
         -- Fire the spin remote
         spinRemote:FireServer()
-        wait(0.1)  -- Small delay to prevent excessive spinning
+        wait(0.2)  -- Small delay to prevent excessive spinning
         
         -- Check the spin result
         local currentRace = spinResultPath.Text
