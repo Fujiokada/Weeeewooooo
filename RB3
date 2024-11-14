@@ -249,12 +249,18 @@ local function completeQuest()
             fireproximityprompt(prompt)
             wait(1)
 
-            -- Check if it's the Quest Completion dialogue
-            local activeQuestDialogue = player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("ActiveQuest")
-            if activeQuestDialogue then
-                -- Quest completion dialogue detected
-                sendNotification("Quest", "Quest completion dialogue detected.")
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+            -- Check if this is the quest completion dialogue
+            if player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("ActiveQuest") then
+                for i = 1, 2 do
+                    if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                        wait(1)
+                    else
+                        sendNotification("Error", "DialogueHandler not found!")
+                        return
+                    end
+                end
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
                 wait(1)
                 replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
                 sendNotification("Quest", "Quest completed successfully.")
@@ -285,11 +291,8 @@ local function takeQuest()
             fireproximityprompt(prompt)
             wait(1)
 
-            -- Check if it's the Quest Taking/Retaking dialogue
-            local availableQuestsDialogue = player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("AvailableQuests")
-            if availableQuestsDialogue then
-                -- Quest taking/retaking dialogue detected
-                sendNotification("Quest", "Quest taking/retaking dialogue detected.")
+            -- Check if this is the quest taking/retaking dialogue
+            if player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("AvailableQuests") then
                 for _ = 1, 4 do
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
