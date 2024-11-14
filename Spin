@@ -42,10 +42,20 @@ while spinning do
     raceSpinRemote:FireServer()
     wait(0.5)  -- Adjust wait time as necessary
 
-    -- Refresh path to get the current rolled race each time
-    local currentRaceSlotFrame = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.SlotFrame.CurrentRaceSlotFrame
-    if currentRaceSlotFrame and currentRaceSlotFrame:FindFirstChild("CurrentElement") then
-        local rolledRace = currentRaceSlotFrame.CurrentElement.ID.Value
+    -- Refresh the path to get the current rolled race each time
+    local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
+    local raceSlotFrame = playerGui:FindFirstChild("GameUI"):FindFirstChild("SlotFrame"):FindFirstChild("CurrentRaceSlotFrame")
+
+    -- Check if the path and CurrentElement exist, then wait for ID to be ready
+    if raceSlotFrame and raceSlotFrame:FindFirstChild("CurrentElement") then
+        local currentElement = raceSlotFrame.CurrentElement
+        local rolledRace
+
+        -- Continuously check for ID within CurrentElement until it appears
+        repeat
+            rolledRace = currentElement:FindFirstChild("ID") and currentElement.ID.Value or nil
+            wait(0.1)
+        until rolledRace
 
         -- Check if the rolled race is in the whitelist
         for _, race in ipairs(whitelistedRaces) do
