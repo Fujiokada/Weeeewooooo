@@ -234,6 +234,21 @@ local function teleportToPositionIfNadeshikoInactive(position)
     end
 end
 
+local function detectQuestDialogue()
+    local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
+    local dialogueFrame = playerGui.GameUI.Dialogue.ScrollingFrame
+
+    -- Check if ActiveQuest dialogue appears first (indicating quest completion dialogue)
+    if dialogueFrame:FindFirstChild("ActiveQuest") then
+        return "Complete"
+    -- Check if AvailableQuests dialogue appears first (indicating quest taking or retaking dialogue)
+    elseif dialogueFrame:FindFirstChild("AvailableQuests") then
+        return "TakeOrRetake"
+    else
+        return "Unknown"
+    end
+end
+
 local function completeQuest()
     while isNadeshikoFieldActive() do
         wait(0.5)
@@ -249,8 +264,9 @@ local function completeQuest()
             fireproximityprompt(prompt)
             wait(1)
 
-            -- Check if this is the quest completion dialogue
-            if player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("ActiveQuest") then
+            -- Check dialogue type after proximity prompt activation
+            local dialogueType = detectQuestDialogue()
+            if dialogueType == "Complete" then
                 for i = 1, 2 do
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
@@ -266,7 +282,7 @@ local function completeQuest()
                 sendNotification("Quest", "Quest completed successfully.")
                 sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
             else
-                sendNotification("Error", "Expected quest completion dialogue not found.")
+                sendNotification("Error", "Quest completion dialogue not detected!")
             end
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
@@ -291,8 +307,9 @@ local function takeQuest()
             fireproximityprompt(prompt)
             wait(1)
 
-            -- Check if this is the quest taking/retaking dialogue
-            if player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("AvailableQuests") then
+            -- Check dialogue type after proximity prompt activation
+            local dialogueType = detectQuestDialogue()
+            if dialogueType == "TakeOrRetake" then
                 for _ = 1, 4 do
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
@@ -305,7 +322,7 @@ local function takeQuest()
                 sendNotification("Quest", "Quest successfully retaken.")
                 sendDiscordNotification("Quest Retaken", "Venqtrix has retaken the quest 'Defeat Strong Souls'.")
             else
-                sendNotification("Error", "Expected quest taking/retaking dialogue not found.")
+                sendNotification("Error", "Quest retake dialogue not detected!")
             end
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
