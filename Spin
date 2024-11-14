@@ -7,9 +7,8 @@ local whitelistedRaces = {
     "Divinari", "Oni", "Starborn", "Seer", "Commander"
 }
 
--- Paths
+-- Race spin remote
 local raceSpinRemote = game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("RaceSpinHandler")
-local raceResultPath = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.SlotFrame.CurrentRaceSlotFrame.CurrentElement
 
 -- Function to send Discord notification
 local function sendDiscordNotification(race)
@@ -43,13 +42,18 @@ while spinning do
     raceSpinRemote:FireServer()
     wait(0.5)  -- Adjust wait time as necessary
 
-    -- Check the rolled race
-    local rolledRace = raceResultPath.ID.Value
-    for _, race in ipairs(whitelistedRaces) do
-        if rolledRace == race then
-            spinning = false  -- Stop spinning when a whitelisted race is found
-            sendDiscordNotification(rolledRace)
-            break
+    -- Refresh path to get the current rolled race each time
+    local currentRaceSlotFrame = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.SlotFrame.CurrentRaceSlotFrame
+    if currentRaceSlotFrame and currentRaceSlotFrame:FindFirstChild("CurrentElement") then
+        local rolledRace = currentRaceSlotFrame.CurrentElement.ID.Value
+
+        -- Check if the rolled race is in the whitelist
+        for _, race in ipairs(whitelistedRaces) do
+            if rolledRace == race then
+                spinning = false  -- Stop spinning when a whitelisted race is found
+                sendDiscordNotification(rolledRace)
+                break
+            end
         end
     end
 end
