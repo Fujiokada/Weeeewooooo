@@ -64,48 +64,6 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
--- Health Monitoring and Auto-Respawn System
-local function monitorHealth()
-    spawn(function()
-        while true do
-            wait(0.1)
-            
-            -- Check if character is alive and health monitoring is active
-            if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag then
-                local humanoid = player.Character.Humanoid
-                if humanoid.Health <= humanoid.MaxHealth * 0.3 then
-                    HealthFlag = false  -- Temporarily disable health monitoring to avoid re-triggering
-
-                    -- Set health to 0 to reset character
-                    humanoid.Health = 0
-                    
-                    -- Start monitoring for the 'Customizations' folder removal (indicating death)
-                    spawn(function()
-                        -- Only proceed if character is valid
-                        if character and character.Parent then
-                           if not character:FindFirstChild("Customizations") then
-                               wait(0.5)  -- Delay before respawning
-                               if respawnCharacter then  -- Ensure respawnCharacter is defined
-                                    respawnCharacter()
-                                  HealthFlag = true  -- Re-enable health monitoring and combat
-                              else
-                                   warn("respawnCharacter function not defined")
-                                end
-                                break
-                            end
-                        else
-                              break
-                           end
-                        end
-                    end)
-                end
-            end
-        end
-    end)
-end
-
-monitorHealth()
-
 local function respawnCharacter()
     if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
@@ -127,6 +85,49 @@ local function respawnCharacter()
         end
     end
 end
+
+-- Health Monitoring and Auto-Respawn System
+local function monitorHealth()
+    spawn(function()
+        while true do
+            wait(0.1)
+            
+            -- Check if character is alive and health monitoring is active
+            if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag then
+                local humanoid = player.Character.Humanoid
+                if humanoid.Health <= humanoid.MaxHealth * 0.3 then
+                    HealthFlag = false  -- Temporarily disable health monitoring to avoid re-triggering
+
+                    -- Set health to 0 to reset character
+                    humanoid.Health = 0
+                    
+                    -- Start monitoring for the 'Customizations' folder removal (indicating death)
+                    spawn(function()
+                        while true do
+                            wait(0.1)
+                            local character = workspace:FindFirstChild(player.Name)
+                            
+                            -- Only proceed if character is valid
+                            if character and character.Parent then
+                                if not character:FindFirstChild("Customizations") then
+                                    wait(0.5)  -- Delay before respawning
+                                    respawnCharacter()
+                                    HealthFlag = true  -- Re-enable health monitoring and combat
+                                    break
+                                end
+                            else
+                                -- Exit if character is nil to avoid nil access issues
+                                break
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+monitorHealth()
 
 local function createFloatingPlatform()
     local character = player.Character
