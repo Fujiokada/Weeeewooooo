@@ -319,9 +319,6 @@ local function respawnCharacter()
         -- Confirm respawn and create floating platform if character is detected
         if isCharacterAlive() then
             createFloatingPlatform()
-            sendNotification("Character Status", "Character respawned successfully.")
-        else
-            sendNotification("Character Status", "Respawn failed. Character still not detected.")
         end
     end
 end
