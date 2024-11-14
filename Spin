@@ -11,7 +11,11 @@ local whitelistedRaces = {
     ["Darkarch"] = true,
     ["Descended"] = true,
     ["Divinari"] = true,
-    ["Oni"] = true
+    ["Oni"] = true,
+    ["Seer"] = true,
+    ["Commander"] = true,
+    ["Starborn"] = true,
+    ["Machine"] = true
 }
 
 -- Path to the ContextName where spin results are displayed
@@ -55,21 +59,21 @@ local function sendDiscordNotification(race)
     end)
 end
 
--- Auto spinner function
+-- Function to start spinning automatically
 local function startAutoSpinner()
-    while true do
-        -- Fire the spin remote
-        spinRemote:FireServer()
-        wait(0.2)  -- Small delay to prevent excessive spinning
-        
-        -- Check the spin result
+    -- Monitor the race result by connecting to the "Changed" event of the spin result text
+    spinResultPath:GetPropertyChangedSignal("Text"):Connect(function()
         local currentRace = spinResultPath.Text
         if whitelistedRaces[currentRace] then
             sendNotification("Race Spin", "Obtained whitelisted race: " .. currentRace)
             sendDiscordNotification(currentRace)
-            break  -- Stop spinning if a whitelisted race is obtained
+        else
+            spinRemote:FireServer()  -- Spin again immediately if race is not whitelisted
         end
-    end
+    end)
+    
+    -- Fire the initial spin
+    spinRemote:FireServer()
 end
 
 -- Start the auto spinner
