@@ -1,4 +1,7 @@
-local player = game:GetService("Players").LocalPlayer
+-- local player = game:GetService("Players").LocalPlayer
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local workspace = game:GetService("Workspace")
 local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
@@ -59,15 +62,21 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
+-- Function to check if character is alive by verifying if 'Venqtrix.Customizations' folder exists
 local function isCharacterAlive()
-    -- Check if the customizations folder exists to determine if the character is alive
-    return workspace:FindFirstChild(player.Name) and workspace[player.Name]:FindFirstChild("Customizations")
+    local character = LocalPlayer.Character
+    if character and workspace:FindFirstChild("Venqtrix") then
+        local customizationsFolder = workspace.Venqtrix:FindFirstChild("Customizations")
+        return customizationsFolder ~= nil -- Returns true if folder exists, false otherwise
+    end
+    return false
 end
 
+-- Respawn wait function
 local function waitForRespawn()
-    -- Wait for the character to respawn based on the Customizations folder existence
+    -- Continuously check until character respawns
     while not isCharacterAlive() do
-        task.wait(respawnDelay)  -- Wait and recheck if the character has respawned
+        RunService.Heartbeat:Wait()
     end
 end
 
