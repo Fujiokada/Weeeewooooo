@@ -1,7 +1,4 @@
--- local player = game:GetService("Players").LocalPlayer
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
+local player = game:GetService("Players").LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local workspace = game:GetService("Workspace")
 local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
@@ -17,7 +14,6 @@ local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
-local respawnDelay = 0.5  -- Time to wait before rechecking for respawn
 
 local lastSkillUse = 0
 local isCharacterAliveFlag = false
@@ -62,22 +58,10 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
--- Function to check if character is alive by verifying if 'Venqtrix.Customizations' folder exists
 local function isCharacterAlive()
-    local character = LocalPlayer.Character
-    if character and workspace:FindFirstChild("Venqtrix") then
-        local customizationsFolder = workspace.Venqtrix:FindFirstChild("Customizations")
-        return customizationsFolder ~= nil -- Returns true if folder exists, false otherwise
-    end
-    return false
-end
-
--- Respawn wait function
-local function waitForRespawn()
-    -- Continuously check until character respawns
-    while not isCharacterAlive() do
-        RunService.Heartbeat:Wait()
-    end
+    local character = workspace:FindFirstChild("Venqtrix")
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
+    return isCharacterAliveFlag
 end
 
 local function createFloatingPlatform()
@@ -281,30 +265,24 @@ end
 
 local function respawnCharacter()
     if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        
-        -- Fire the respawn remote
+        sendNotification("Character Status", "Character is dead, attempting respawn...")
         spawnRemote:FireServer(1)
-        
-        -- Wait for character to respawn and check again
-        local attempts = 0
-        while not isCharacterAlive() and attempts < 10 do
-            wait(0.5)
-            attempts = attempts + 1
+        wait(2)  -- Initial wait for respawn
+
+        local retries = 5  -- Max retry count
+        while retries > 0 and not isCharacterAlive() do
+            retries -= 1
+            wait(0.5)  -- Check every 0.5 seconds for Customizations folder
         end
-        
-        -- Confirm the character is alive and create the floating platform
+
         if isCharacterAlive() then
             createFloatingPlatform()
             sendNotification("Character Status", "Character respawned successfully.")
-            HealthFlag = true  -- Ensure HealthFlag is re-enabled after respawn
         else
-            sendNotification("Error", "Respawn failed. Please check spawn conditions.")
+            sendNotification("Character Status", "Respawn failed after multiple attempts.")
         end
     end
 end
-
 
 local function hasQuest()
     -- Check if the player currently has the target quest
@@ -356,7 +334,6 @@ spawn(function()
             if not isCharacterAlive() then
                 HealthFlag = false
                 respawnCharacter()
-                waitForRespawn()
             else
                 HealthFlag = true
             end
