@@ -60,7 +60,7 @@ local function sendDiscordNotification(status, details)
 end
 
 local function isCharacterAlive()
-    local character = workspace:FindFirstChild("player.Name")
+    local character = workspace:FindFirstChild(player.Name)
     isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
     return isCharacterAliveFlag
 end
