@@ -70,32 +70,31 @@ local function monitorHealth()
         while true do
             wait(0.1)
             
-            -- Check if character is alive and health monitoring is active
             if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag and not respawnInProgress then
                 local humanoid = player.Character.Humanoid
                 if humanoid.Health <= humanoid.MaxHealth * 0.3 then
-                    HealthFlag = false  -- Temporarily disable health monitoring to avoid re-triggering
-                    respawnInProgress = true  -- Set the flag to prevent further respawn attempts
+                    HealthFlag = false  -- Temporarily disable health monitoring
+                    respawnInProgress = true  -- Set respawn flag
                     
                     -- Set health to 0 to reset character
                     humanoid.Health = 0
                     
-                    -- Start monitoring for the 'Customizations' folder removal (indicating death)
                     spawn(function()
                         while respawnInProgress do
                             wait(0.1)
                             local character = workspace:FindFirstChild(player.Name)
                             
-                            -- Only proceed if character is valid
-                            if character and character.Parent then
-                                if not character:FindFirstChild("Customizations") then
-                                    wait(0.5)  -- Delay before respawning
-                                    respawnCharacter()
-                                    HealthFlag = true  -- Re-enable health monitoring
-                                    break
-                                end
-                            else
-                                -- Exit if character is nil to avoid nil access issues
+                            -- Monitor if the 'Customizations' folder is removed
+                            if character and character.Parent and not character:FindFirstChild("Customizations") then
+                                wait(0.5)  -- Delay before respawn
+                                respawnCharacter()
+                                
+                                -- Reset flags after respawn is confirmed
+                                HealthFlag = true
+                                respawnInProgress = false
+                                break
+                            elseif not character then
+                                -- Exit loop if character is nil
                                 break
                             end
                         end
