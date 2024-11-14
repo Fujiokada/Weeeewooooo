@@ -158,13 +158,12 @@ end
 
 -- Updated activateSkills function to include cooldown check for each skill
 local function activateSkills(currentEnemy)
-    -- Check if the enemy's health is above 20% before using Nadeshiko Field
     local shouldUseNadeshiko = false
 
     if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
         local humanoid = currentEnemy.Humanoid
         local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-        shouldUseNadeshiko = healthPercentage > 30 
+        shouldUseNadeshiko = healthPercentage > 40 
     end
 
     unequipTool()
