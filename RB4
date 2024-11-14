@@ -14,7 +14,7 @@ local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
-local respawning = false  -- Flag to track if respawn is in progress
+local respawnInProgress = false  -- Flag to prevent multiple respawn calls
 
 local lastSkillUse = 0
 local isCharacterAliveFlag = false
@@ -65,18 +65,20 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
--- Health Monitoring and Auto-Respawn System
 local function monitorHealth()
     spawn(function()
         while true do
             wait(0.1)
             
             -- Check if character is alive and health monitoring is active
-            if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag then
+            if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag and not respawnInProgress then
                 local humanoid = player.Character.Humanoid
-                if humanoid.Health <= humanoid.MaxHealth * 0.3 and not respawning then
+                if humanoid.Health <= humanoid.MaxHealth * 0.3 then
                     HealthFlag = false  -- Temporarily disable health monitoring to avoid re-triggering
-                    humanoid.Health = 0  -- Set health to 0 to reset character
+                    respawnInProgress = true  -- Set the flag to prevent further respawn attempts
+                    
+                    -- Set health to 0 to reset character
+                    humanoid.Health = 0
                     
                     -- Start monitoring for the 'Customizations' folder removal (indicating death)
                     spawn(function()
@@ -90,6 +92,7 @@ local function monitorHealth()
                                     wait(0.5)  -- Delay before respawning
                                     respawnCharacter()
                                     HealthFlag = true  -- Re-enable health monitoring and combat
+                                    respawnInProgress = false  -- Reset the flag after respawn
                                     break
                                 end
                             else
@@ -103,6 +106,7 @@ local function monitorHealth()
         end
     end)
 end
+
 
 monitorHealth()
 
@@ -306,8 +310,7 @@ local function takeQuest()
 end
 
 local function respawnCharacter()
-    if not isCharacterAlive() and not respawning then
-        respawning = true  -- Set flag to indicate respawn is underway
+    if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
         wait(2)
         
@@ -321,10 +324,10 @@ local function respawnCharacter()
             wait(0.5)  -- Check every 0.5 seconds
         end
         
-        -- Confirm respawn and reset flag
+        -- Confirm respawn and create floating platform if character is detected
         if isCharacterAlive() then
             createFloatingPlatform()
-            respawning = false  -- Reset flag after successful respawn
+            respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
         end
     end
 end
