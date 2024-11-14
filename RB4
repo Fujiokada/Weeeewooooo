@@ -75,24 +75,20 @@ local function monitorHealth()
                 if humanoid.Health <= humanoid.MaxHealth * 0.3 then
                     HealthFlag = false  -- Temporarily disable health monitoring
 
-                    -- Set health to 0 to reset character
-                    humanoid.Health = 0
+                    humanoid.Health = 0 -- Reset character
                     
-                    -- Start monitoring for the 'Customizations' folder removal (indicating death)
+                    -- Monitor character's state and respawn if needed
                     spawn(function()
                         while true do
                             wait(0.1)
                             local character = workspace:FindFirstChild(player.Name)
                             
-                            if character and character.Parent then
-                                if not character:FindFirstChild("Customizations") then
-                                    wait(0.5)
-                                    respawnCharacter()
-                                    HealthFlag = true  -- Re-enable health monitoring
-                                    break
-                                end
-                            else
+                            if character and character.Parent and not character:FindFirstChild("Customizations") then
+                                wait(0.5)  -- Slight delay before respawn
+                                respawnCharacter()
                                 break
+                            elseif not character then
+                                break -- Exit if character is nil
                             end
                         end
                     end)
@@ -303,6 +299,7 @@ local function takeQuest()
     end
 end
 
+-- Improved respawnCharacter function with validation
 local function respawnCharacter()
     if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
@@ -312,21 +309,19 @@ local function respawnCharacter()
         spawnRemote:FireServer(1)
         
         -- Wait until character respawns
-        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
+        local maxWaitTime = 10
         local startTime = tick()
         while not isCharacterAlive() and tick() - startTime < maxWaitTime do
-            wait(0.5)  -- Check every 0.5 seconds
+            wait(0.5)
         end
-
-        -- Confirm respawn and create floating platform if character is detected
-        if isCharacterAlive() and player.Character then
+        
+        -- Confirm character is alive and fully loaded before re-enabling HealthFlag
+        if isCharacterAlive() and workspace:FindFirstChild("Venqtrix"):FindFirstChild("Customizations") then
             createFloatingPlatform()
-        else
-            sendNotification("Error", "Respawn failed or character not detected!")
+            HealthFlag = true
         end
     end
 end
-
 
 local function hasQuest()
     -- Check if the player currently has the target quest
