@@ -1,70 +1,25 @@
--- Services and Variables
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
-local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
+-- Autofarm Script by [Your Name]
+-- Define toggle and set it initially to false
 local toggle = false
-local questNPCPosition = Vector3.new(232, 3, -703)
-local questName = "Defeat Strong Souls"
-local questEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
-local punchToolName = "Katana"
-local skillTools = {"Lion's Slash", "Conqueror's Field", "Nadeshiko Field"}
-local webhookURL = "YOUR_DISCORD_WEBHOOK_URL"  -- Replace with your actual webhook URL
-local autoClickPosition = Vector2.new(1095, 530)
+
+-- Define the platform and character variables
+local player = game.Players.LocalPlayer
 local floatName = "FloatingPlatform"
 
--- Helper Functions
-local function sendNotification(title, text)
-    StarterGui:SetCore("SendNotification", {
-        Title = title;
-        Text = text;
-        Duration = 2;
-    })
-end
-
-local function sendDiscordNotification(status, details)
-    local data = {
-        ["username"] = "Quest Notifier",
-        ["embeds"] = {{
-            ["title"] = "**Quest Update: " .. status .. "**",
-            ["description"] = details,
-            ["color"] = status == "Quest Completed" and 65280 or 16711680,
-            ["footer"] = {["text"] = "Roblox Quest Notifier"},
-            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        }}
-    }
-    local jsonData = HttpService:JSONEncode(data)
-    pcall(function()
-        syn.request({
-            Url = webhookURL,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = jsonData
-        })
-    end)
-end
-
--- Character Respawn & Platform
-local function isCharacterAlive()
-    return Workspace:FindFirstChild(LocalPlayer.Name) and Workspace[LocalPlayer.Name]:FindFirstChild("Customizations")
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        local args = {[1] = 1}
-        ReplicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler"):FireServer(unpack(args))
-        sendNotification("Respawn", "Character respawned.")
+-- Function to check if the character is dead and respawn if needed
+local function checkAndRespawn()
+    while toggle do
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            -- Fire the spawn remote to respawn the character
+            game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler"):FireServer(1)
+        end
         wait(1)
-        createFloatingPlatform()
     end
 end
 
+-- Function to create floating platform under character
 local function createFloatingPlatform()
-    local character = LocalPlayer.Character
+    local character = player.Character
     if character and not character:FindFirstChild(floatName) then
         local Float = Instance.new('Part')
         Float.Name = floatName
@@ -72,116 +27,136 @@ local function createFloatingPlatform()
         Float.Transparency = 1
         Float.Size = Vector3.new(2, 0.2, 1.5)
         Float.Anchored = true
-        Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, -3.1, 0)
+        local FloatValue = -3.1
+
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+        end)
     end
 end
 
--- Quest Management
+-- Function to check quest status
 local function checkQuestStatus()
-    local questHolder = LocalPlayer.PlayerGui.GameUI.Quests.QuestHolder
-    local activeQuest = questHolder:FindFirstChild("Quest") and questHolder.Quest.QuestName.ContentText
-
-    if activeQuest == questName then
-        return "active"
-    elseif activeQuest == nil then
-        return "none"
-    else
-        return "other"
-    end
+    local questName = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.Quests.QuestHolder.Quest.QuestName
+    return questName and questName.ContentText == "Defeat Strong Souls"
 end
 
-local function handleQuestDialogue()
-    local dialogueFrame = LocalPlayer.PlayerGui.GameUI.Dialogue.ScrollingFrame
-    if dialogueFrame:FindFirstChild("ActiveQuest") then
-        completeQuest()
-    elseif dialogueFrame:FindFirstChild("AvailableQuest") then
-        takeQuest()
-    end
-end
-
-local function completeQuest()
-    teleportToPosition(questNPCPosition)
-    wait(0.5)
-    local args = {[1] = 2}
-    ReplicatedStorage.ClientRemotes.DialogueHandler:FireServer(unpack(args))
-    wait(0.5)
-    ReplicatedStorage.ClientRemotes.DialogueHandler:FireServer({1})
-    wait(0.5)
-    ReplicatedStorage.ClientRemotes.DialogueHandler:FireServer({1})
-    sendNotification("Quest Status", "Quest completed.")
-    sendDiscordNotification("Quest Completed", "Successfully completed the quest.")
-end
-
+-- Function to take or retake the quest
 local function takeQuest()
-    teleportToPosition(questNPCPosition)
+    player.Character:SetPrimaryPartCFrame(CFrame.new(232, 3, -703))
     wait(0.5)
-    for i = 1, 4 do
-        ReplicatedStorage.ClientRemotes.DialogueHandler:FireServer({1})
-        wait(0.5)
-    end
-    sendNotification("Quest Status", "Quest taken.")
-    sendDiscordNotification("Quest Retaken", "Successfully retaken the quest.")
+    fireproximityprompt(workspace.NPCs.Agor.ProximityPrompt)
 end
 
--- Combat System
-local function isQuestEnemy(name)
-    for _, target in ipairs(questEnemies) do
-        if name:find(target) then return true end
-    end
-    return false
-end
+-- Function to manage the quest dialogue and detect completion
+local function handleQuestDialogue()
+    local dialoguePath = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.Dialogue.ScrollingFrame
+    local activeQuest = dialoguePath:FindFirstChild("ActiveQuest")
+    local availableQuest = dialoguePath:FindFirstChild("AvailableQuest")
 
-local function attackEnemy(enemy)
-    local katana = LocalPlayer.Backpack:FindFirstChild(punchToolName)
-    if katana then katana.Parent = LocalPlayer.Character end
-    repeat
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-        wait(0.5)
-        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-        if enemy.Humanoid.Health <= 0 then
-            break
+    if activeQuest then
+        -- Complete quest
+        for i = 1, 3 do
+            game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("DialogueHandler"):FireServer(2)
+            wait(0.5)
         end
-    until not enemy or not isCharacterAlive()
-end
-
-local function engageEnemies()
-    local aiCharacters = Workspace:WaitForChild("AiCharacters")
-    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-        if isQuestEnemy(enemy.Name) then
-            teleportToEnemy(enemy)
-            attackEnemy(enemy)
+    elseif availableQuest then
+        -- Take or retake quest
+        for i = 1, 4 do
+            game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("DialogueHandler"):FireServer(1)
+            wait(0.5)
         end
     end
 end
 
--- Teleport and Utility Functions
-local function teleportToPosition(position)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(position))
+-- Function to send notification
+local function sendNotification(title, text)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 2;
+    })
+end
+
+-- Function to teleport to enemies and perform actions
+local function teleportAndAttackEnemies()
+    local aiCharacters = workspace.AiCharacters:GetChildren()
+    for _, enemy in ipairs(aiCharacters) do
+        if string.match(enemy.Name, "Gravitron Soul") or string.match(enemy.Name, "Time Soul") or string.match(enemy.Name, "Light Soul") then
+            local enemyPosition = enemy.HumanoidRootPart.Position
+            player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPosition + Vector3.new(0, 0, 7)))
+            equipTool("Katana")
+            while enemy.Parent and toggle do
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(1095, 530, 0, true, game, 0)
+                wait(0.5)
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(1095, 530, 0, false, game, 0)
+                -- Check for skills and cooldowns, activate them if ready
+                wait(1)
+            end
+            unequipTool()
+        end
     end
 end
 
-local function teleportToEnemy(enemy)
-    if enemy and enemy:FindFirstChild("HumanoidRootPart") then
-        teleportToPosition(enemy.HumanoidRootPart.Position + Vector3.new(0, 0, 7))
+-- Function to equip tool
+local function equipTool(toolName)
+    local tool = player.Backpack:FindFirstChild(toolName)
+    if tool then
+        tool.Parent = player.Character
     end
 end
 
--- Toggle System
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+-- Function to unequip all tools
+local function unequipTool()
+    for _, tool in ipairs(player.Character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = player.Backpack
+        end
+    end
+end
+
+-- Function to send Discord notification on quest update
+local function sendDiscordNotification(status, details)
+    local data = {
+        ["username"] = "Quest Notifier",
+        ["embeds"] = {{
+            ["title"] = "**Quest Update: " .. status .. "**",
+            ["description"] = details,
+            ["color"] = status == "Quest Completed" and 65280 or 16711680,
+            ["footer"] = {
+                ["text"] = "Roblox Quest Notifier",
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+    pcall(function()
+        syn.request({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = jsonData
+        })
+    end)
+end
+
+-- Toggle the autofarm
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.T then
         toggle = not toggle
         sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
         if toggle then
-            while toggle do
-                respawnCharacter()
-                if checkQuestStatus() == "none" then
-                    takeQuest()
-                elseif checkQuestStatus() == "active" then
-                    engageEnemies()
-                end
-                wait(1)
+            checkAndRespawn()
+            createFloatingPlatform()
+            if not checkQuestStatus() then
+                takeQuest()
             end
+            handleQuestDialogue()
+            teleportAndAttackEnemies()
         end
     end
 end)
