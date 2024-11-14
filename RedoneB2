@@ -157,11 +157,11 @@ local function activateConquerorsWill()
     end
 end
 
--- Function to activate Nadeshiko Field with cooldown check and 1-second delay after teleporting
+-- Function to activate Nadeshiko Field with cooldown check and 1-second delay before activation
 local function activateNadeshikoField()
     local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
     if nadeshikoTool and not isToolOnCooldown(nadeshikoTool) then
-        wait(1)  -- Delay activation to ensure teleportation is complete
+        wait(1)  -- Delay activation to ensure a stable position before using the skill
         equipTool("Nadeshiko Field")
         local holdDuration = 5  -- Hold LMB for 5 seconds
         local startTime = tick()
