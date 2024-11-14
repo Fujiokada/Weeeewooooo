@@ -1,38 +1,45 @@
--- Configuration
+-- Webhook URL
 local webhookURL = "https://discord.com/api/webhooks/1306244225725370471/wFVYW4SdmUMhvPOxqTY0VncLWLEtArsrGs3lnzSu38aKpHdlP84FD6IbcWCgqJ5Z1wyS"
 
+-- Whitelisted Races
 local whitelistedRaces = {
-    ["Ascended"] = true,
-    ["Arch"] = true,
-    ["Chtharim"] = true,
-    ["Darkarch"] = true,
-    ["Descended"] = true,
-    ["Divinari"] = true,
-    ["Oni"] = true,
-    ["Starborn"] = true,
-    ["Seer"] = true,
-    ["Commander"] = true
+    "Ascended", "Arch", "Chtharim", "Darkarch", "Descended", 
+    "Divinari", "Oni", "Starborn", "Seer", "Commander"
 }
 
-local contextPath = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.SlotFrame.CurrentRaceSlotFrame.CurrentElement.ID
+-- Remote path
 local remote = game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("RaceSpinHandler")
 
--- Function to send a Discord notification
-local function sendDiscordNotification(status, details)
+-- ContextName Path
+local contextPath = game:GetService("Players").LocalPlayer.PlayerGui.GameUI.SlotFrame.CurrentRaceSlotFrame.CurrentElement.ID
+
+-- Function to check if race is whitelisted
+local function isWhitelisted(race)
+    for _, v in ipairs(whitelistedRaces) do
+        if v == race then
+            return true
+        end
+    end
+    return false
+end
+
+-- Function to send Discord notification
+local function sendDiscordNotification(race)
     local data = {
         ["username"] = "Race Spinner",
         ["embeds"] = {{
-            ["title"] = "**Race Roll Result: " .. status .. "**",
-            ["description"] = details,
-            ["color"] = 65280,  -- Green color
+            ["title"] = "**Whitelisted Race Obtained**",
+            ["description"] = "Congratulations! You've rolled a whitelisted race: **" .. race .. "**",
+            ["color"] = 65280,  -- Green color for success
             ["footer"] = {
-                ["text"] = "Roblox Auto Spinner",
+                ["text"] = "Auto Spinner Notifier",
             },
-            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")  -- UTC time
         }}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
     pcall(function()
         syn.request({
             Url = webhookURL,
@@ -43,29 +50,23 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
--- Auto Spinner Loop
+-- Main spinning loop
 while true do
-    -- Wait for context path to exist
-    repeat wait() until contextPath and contextPath:IsA("TextLabel") and contextPath:FindFirstChild("ContextName")
-    
-    -- Fire the race spin remote
-    remote:FireServer()
-    
-    -- Wait briefly for the result to be available
-    wait(1)
-    
-    -- Check the current race from the ContextName
-    local currentRace = contextPath.ContextName.Text
-    print("Rolled Race: " .. currentRace)  -- Debugging output
-
-    -- Check if the rolled race is whitelisted
-    if whitelistedRaces[currentRace] then
-        sendDiscordNotification("Whitelisted Race Obtained", "You rolled: " .. currentRace)
-        break  -- Stop the loop since we found a whitelisted race
+    -- Check if the context path exists before proceeding
+    while not pcall(function() return contextPath.ContextName end) do
+        wait(0.1)  -- Wait until path is valid
     end
-    
-    -- Handle potential deletion of path (if deleted, loop will retry the `repeat` block)
-    if not contextPath.ContextName then
-        print("Path does not exist, waiting for it to reappear...")
+
+    -- Get the current race name from the ContextName
+    local currentRace = contextPath.ContextName
+
+    -- Check if the race is whitelisted
+    if isWhitelisted(currentRace) then
+        sendDiscordNotification(currentRace)  -- Send a Discord notification
+        break  -- Stop the loop
+    else
+        -- Fire the remote to spin again if race is not whitelisted
+        remote:FireServer()
+        wait(0.1)  -- Small delay to avoid spamming too fast
     end
 end
