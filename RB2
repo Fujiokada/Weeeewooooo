@@ -16,7 +16,6 @@ local StarterGui = game:GetService("StarterGui")
 local toggle = false
 
 local lastSkillUse = 0
-local lastConquerorsWillUse = 0  -- Track Conqueror's Will cooldown
 local isCharacterAliveFlag = false
 local HealthFlag = true
 
@@ -118,85 +117,55 @@ local function isNadeshikoFieldActive()
     return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
--- Function to check if a tool is on cooldown by matching d% pattern in the tool name
-local function isToolOnCooldown(toolName)
-    local tool = player.Backpack:FindFirstChild(toolName)
-    if tool then
-        return tool.Name:match("%d+") ~= nil  -- Returns true if there are numbers in the tool name
-    end
-    return false
+-- Function to check cooldown based on tool name pattern
+local function isSkillOnCooldown(tool)
+    return tool and tool.Name:match("%d")
 end
 
--- Function to activate Conqueror's Will with retry until cooldown is detected
-local function activateConquerorsWill()
-    local conquerorsWillTool = player.Backpack:FindFirstChild("Conqueror's Will")
-    if conquerorsWillTool and not isToolOnCooldown("Conqueror's Will") then
-        equipTool("Conqueror's Will")
-        for _ = 1, 3 do
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-            wait(0.1)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-        end
-        unequipTool()
-        lastConquerorsWillUse = tick()
-    end
-end
-
--- Function to activate Lion's Slash with retry until cooldown is detected
-local function activateLionsSlash()
-    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
-    if lionSlashTool and not isToolOnCooldown("Lion's Slash") then
-        equipTool("Lion's Slash")
-        for _ = 1, 3 do
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-            wait(0.1)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
-        end
-        unequipTool()
-        lastSkillUse = tick()
-    end
-end
-
--- Updated activateSkills function to handle retry activation for skills with cooldown checks
+-- Skill activation function with cooldown check and retry mechanism
 local function activateSkills(currentEnemy)
-    -- Check if the enemy's health is above 20% before using Nadeshiko Field
-    local shouldUseNadeshiko = false
-
-    if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
-        local humanoid = currentEnemy.Humanoid
-        local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-        shouldUseNadeshiko = healthPercentage > 30 
-    end
-
     unequipTool()
 
-    -- Activate "Lion's Slash" if not on cooldown
-    if tick() - lastSkillUse > 5 then
-        activateLionsSlash()
+    -- Activate "Lion's Slash" with cooldown check
+    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
+    if lionSlashTool and not isSkillOnCooldown(lionSlashTool) then
+        equipTool("Lion's Slash")
+        local startTime = tick()
+        repeat
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+        until isSkillOnCooldown(lionSlashTool) or (tick() - startTime) > 5
+        unequipTool()
     end
 
-    -- Activate "Conqueror's Will" if 60 seconds have passed and it's not on cooldown
-    if tick() - lastConquerorsWillUse > 60 then
-        activateConquerorsWill()
+    -- Activate "Conqueror's Will" with a 60s cooldown and retry check
+    local conquerorTool = player.Backpack:FindFirstChild("Conqueror's Will")
+    if conquerorTool and not isSkillOnCooldown(conquerorTool) then
+        equipTool("Conqueror's Will")
+        local startTime = tick()
+        repeat
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+        until isSkillOnCooldown(conquerorTool) or (tick() - startTime) > 5
+        unequipTool()
     end
 
-    -- Activate "Nadeshiko Field" only if it's not already active and enemy health > 20%
-    if shouldUseNadeshiko and not isNadeshikoFieldActive() then
-        local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
-        if nadeshikoTool then
-            equipTool("Nadeshiko Field")
-            local holdDuration = 5  -- Hold LMB for 5 seconds
-            local startTime = tick()
-
-            -- Simulate holding the click, but stop if Nadeshiko Field activates
-            while tick() - startTime < holdDuration do
-                if isNadeshikoFieldActive() then
-                    break
+    -- Nadeshiko Field remains the same
+    if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
+        local healthPercentage = (currentEnemy.Humanoid.Health / currentEnemy.Humanoid.MaxHealth) * 100
+        if healthPercentage > 30 and not isNadeshikoFieldActive() then
+            local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
+            if nadeshikoTool then
+                equipTool("Nadeshiko Field")
+                local startTime = tick()
+                while tick() - startTime < 5 do
+                    if isNadeshikoFieldActive() then break end
+                    simulateHoldClick(0.1)
                 end
-                simulateHoldClick(0.1)  -- Short click hold to check activation status
+                unequipTool()
             end
-
-            unequipTool()
         end
     end
 
