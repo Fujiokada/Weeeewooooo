@@ -65,6 +65,29 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        
+        -- Trigger respawn
+        spawnRemote:FireServer(1)
+        
+        -- Wait until character respawns
+        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
+        local startTime = tick()
+        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
+            wait(0.5)  -- Check every 0.5 seconds
+        end
+        
+        -- Confirm respawn and create floating platform if character is detected
+        if isCharacterAlive() then
+            createFloatingPlatform()
+            respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
+        end
+    end
+end
+
 local function monitorHealth()
     spawn(function()
         while true do
@@ -361,29 +384,6 @@ local function activateSkills(currentEnemy)
     if isLowHealth() then return end  -- Prevent skill usage if health is low
 
     -- Existing skill logic here
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        
-        -- Trigger respawn
-        spawnRemote:FireServer(1)
-        
-        -- Wait until character respawns
-        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
-        local startTime = tick()
-        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
-            wait(0.5)  -- Check every 0.5 seconds
-        end
-        
-        -- Confirm respawn and create floating platform if character is detected
-        if isCharacterAlive() then
-            createFloatingPlatform()
-            respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
-        end
-    end
 end
 
 -- Main loop with additional health monitoring and existing functionality
