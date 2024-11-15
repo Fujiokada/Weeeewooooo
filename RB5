@@ -132,7 +132,6 @@ local function createFloatingPlatform()
     end
 end
 
-
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
     VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
@@ -307,21 +306,6 @@ local function takeQuest()
     end
 end
 
-local function hasQuest()
-    -- Check if the player currently has the target quest
-    local quest = questHolder:FindFirstChild("Quest")
-    if quest and quest:FindFirstChild("QuestName") then
-        return quest.QuestName.ContentText == targetQuestName
-    end
-    return false
-end
-
-local function isQuestCompleted()
-    -- Check if the quest progress indicates completion (3/3)
-    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
-    return questProgress and questProgress.Progress.ContentText == "3/3"
-end
-
 local function respawnCharacter()
     if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
@@ -343,6 +327,21 @@ local function respawnCharacter()
             respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
         end
     end
+end
+
+local function hasQuest()
+    -- Check if the player currently has the target quest
+    local quest = questHolder:FindFirstChild("Quest")
+    if quest and quest:FindFirstChild("QuestName") then
+        return quest.QuestName.ContentText == targetQuestName
+    end
+    return false
+end
+
+local function isQuestCompleted()
+    -- Check if the quest progress indicates completion (3/3)
+    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    return questProgress and questProgress.Progress.ContentText == "3/3"
 end
 
 local function isLowHealth()
@@ -386,6 +385,7 @@ local function activateSkills(currentEnemy)
 
     -- Existing skill logic here
 end
+
 
 -- Main loop with additional health monitoring and existing functionality
 spawn(function()
@@ -450,4 +450,4 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
             sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
         end
     end
-end)
+end) 
