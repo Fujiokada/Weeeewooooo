@@ -14,8 +14,7 @@ local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
 local StarterGui = game:GetService("StarterGui")
 local toggle = false
-local respawnInProgress = false  -- Flag to prevent multiple respawn calls
-
+local respawnInProgress = false -- Flag to prevent multiple respawn calls
 local lastSkillUse = 0
 local isCharacterAliveFlag = false
 local HealthFlag = true
@@ -59,34 +58,42 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
+-- Check if character is alive
 local function isCharacterAlive()
     local character = workspace:FindFirstChild(player.Name)
     isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
     return isCharacterAliveFlag
 end
 
--- Main health monitoring loop (prioritized)
+-- Monitor health and reset character if health drops below 30%
 local function monitorHealth()
     spawn(function()
         while true do
             wait(0.1)
-            
-            -- Prioritize health check
             if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag and not respawnInProgress then
                 local humanoid = player.Character.Humanoid
                 if humanoid.Health <= humanoid.MaxHealth * 0.3 then
-                    HealthFlag = false  -- Temporarily disable health monitoring to avoid reset conflicts
-                    respawnInProgress = true  -- Set respawn flag
+                    HealthFlag = false -- Temporarily disable health monitoring
+                    respawnInProgress = true -- Set respawn flag
                     humanoid.Health = 0
-                    
-                    -- Start respawn process
-                    spawn(function()
-                        wait(2)  -- Wait briefly before respawning
-                        respawnCharacter()  -- Trigger respawn logic
 
-                        -- Reset after respawn completes
-                        HealthFlag = true
-                        respawnInProgress = false
+                    spawn(function()
+                        while respawnInProgress do
+                            wait(0.1)
+                            local character = workspace:FindFirstChild(player.Name)
+
+                            if character and character.Parent and not character:FindFirstChild("Customizations") then
+                                wait(1) -- Delay before respawn
+                                respawnCharacter()
+
+                                -- Reset flags after respawn is confirmed
+                                HealthFlag = true
+                                respawnInProgress = false
+                                break
+                            elseif not character then
+                                break
+                            end
+                        end
                     end)
                 end
             end
@@ -94,8 +101,7 @@ local function monitorHealth()
     end)
 end
 
-monitorHealth()
-
+-- Floating platform
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -195,6 +201,7 @@ local function activateSkills(currentEnemy)
         unequipTool()
     end
 
+    monitorHealth()
     -- Activate "Nadeshiko Field" only if the enemy's health is above 30% and it's not already active
     if shouldUseNadeshiko and not isNadeshikoFieldActive() then
         local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
@@ -295,7 +302,7 @@ local function takeQuest()
     end
 end
 
--- Reset the character (respawn logic)
+-- Respawn character
 local function respawnCharacter()
     if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
@@ -305,18 +312,16 @@ local function respawnCharacter()
         spawnRemote:FireServer(1)
 
         -- Wait until character respawns
-        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
+        local maxWaitTime = 10
         local startTime = tick()
         while not isCharacterAlive() and tick() - startTime < maxWaitTime do
-            wait(0.5)  -- Check every 0.5 seconds
+            wait(0.5)
         end
-        
-        -- Confirm respawn and reset flags if successful
+
+        -- Confirm respawn and create floating platform
         if isCharacterAlive() then
             createFloatingPlatform()
-            respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
-        else
-            sendNotification("Error", "Respawn failed!")
+            respawnInProgress = false
         end
     end
 end
