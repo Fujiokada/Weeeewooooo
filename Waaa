@@ -1,0 +1,220 @@
+-- Define player, services, and initial variables
+local player = game:GetService("Players").LocalPlayer
+local StarterGui = game:GetService("StarterGui")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local virtualInputManager = game:GetService("VirtualInputManager")
+local debrisHolder = workspace:WaitForChild("debrisHolder")
+local questNpcPosition = Vector3.new(232, 3, -703)
+local questNpcPrompt = workspace.NPCs.Agor.ProximityPrompt
+local questName = "Defeat Strong Souls"
+local autoClickPosition = Vector2.new(1095, 530)
+local toggle = true
+local respawnInProgress = false
+local floatName = "FloatingPlatform"
+local questEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local webhookURL = "https://discord.com/api/webhooks/1306244225725370471/wFVYW4SdmUMhvPOxqTY0VncLWLEtArsrGs3lnzSu38aKpHdlP84FD6IbcWCgqJ5Z1wyS"  -- Replace with your Discord webhook URL
+
+-- Helper Functions
+local function sendNotification(title, text)
+    StarterGui:SetCore("SendNotification", { Title = title; Text = text; Duration = 2; })
+end
+
+local function sendDiscordNotification(status, details)
+    local data = {
+        ["username"] = "Quest Notifier",
+        ["embeds"] = {{
+            ["title"] = "**Quest Update: " .. status .. "**",
+            ["description"] = details,
+            ["color"] = status == "Quest Completed" and 65280 or 16711680,
+            ["footer"] = { ["text"] = "Roblox Quest Notifier" },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+    local jsonData = HttpService:JSONEncode(data)
+    pcall(function()
+        syn.request({ Url = webhookURL, Method = "POST", Headers = { ["Content-Type"] = "application/json" }, Body = jsonData })
+    end)
+end
+
+-- Check Character Functions
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild(player.Name)
+    return character and character:FindFirstChild("Customizations")
+end
+
+local function respawnCharacter()
+    if not isCharacterAlive() and not respawnInProgress then
+        respawnInProgress = true
+        local args = { [1] = 1 }
+        game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler"):FireServer(unpack(args))
+        while not isCharacterAlive() do wait(0.5) end
+        createFloatingPlatform()
+        respawnInProgress = false
+    end
+end
+
+-- Floating Platform for Character
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part', character)
+        Float.Name = floatName
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, -3.1, 0)
+            end
+        end)
+    end
+end
+
+-- Quest Handling Functions
+local function hasStrongSoulQuest()
+    local quest = player.PlayerGui.GameUI.Quests.QuestHolder.Quest.QuestName:FindFirstChild("ContentText")
+    return quest and quest.Text == questName
+end
+
+local function isQuestCompletionDialogue()
+    return player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("ActiveQuest") ~= nil
+end
+
+local function isQuestAvailableDialogue()
+    return player.PlayerGui.GameUI.Dialogue.ScrollingFrame:FindFirstChild("AvailableQuest") ~= nil
+end
+
+local function completeQuest()
+    if isQuestCompletionDialogue() then
+        local dialogueHandler = game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("DialogueHandler")
+        dialogueHandler:FireServer(2)
+        wait(0.5)
+        dialogueHandler:FireServer(1)
+        wait(0.5)
+        sendNotification("Quest", "Quest completed.")
+        sendDiscordNotification("Quest Completed", "Successfully completed the quest.")
+    end
+end
+
+local function takeOrRetakeQuest()
+    if isQuestAvailableDialogue() then
+        local dialogueHandler = game:GetService("ReplicatedStorage"):WaitForChild("ClientRemotes"):WaitForChild("DialogueHandler")
+        for i = 1, 4 do
+            dialogueHandler:FireServer(1)
+            wait(0.5)
+        end
+    end
+end
+
+local function handleQuest()
+    if not hasStrongSoulQuest() then
+        player.Character:SetPrimaryPartCFrame(CFrame.new(questNpcPosition))
+        wait(0.5)
+        questNpcPrompt:InputHoldBegin()
+        wait(0.5)
+        questNpcPrompt:InputHoldEnd()
+        wait(0.5)
+        if isQuestCompletionDialogue() then completeQuest()
+        elseif isQuestAvailableDialogue() then takeOrRetakeQuest() end
+    end
+end
+
+-- Combat Functions
+local function teleportBehind(target)
+    if target and target:FindFirstChild("HumanoidRootPart") then
+        player.Character:SetPrimaryPartCFrame(target.HumanoidRootPart.CFrame * CFrame.new(0, 0, 7):LookAt(target.HumanoidRootPart.Position))
+    end
+end
+
+local function isQuestEnemy(character)
+    for _, name in ipairs(questEnemies) do
+        if character.Name:match(name) then return true end
+    end
+    return false
+end
+
+local function isSkillOnCooldown(tool)
+    return tool and tool.Name:match("%d+")
+end
+
+local function equipTool(toolName)
+    local tool = player.Backpack:FindFirstChild(toolName)
+    if tool then
+        unequipTool()
+        tool.Parent = player.Character
+    end
+end
+
+local function unequipTool()
+    for _, tool in ipairs(player.Character:GetChildren()) do
+        if tool:IsA("Tool") then tool.Parent = player.Backpack end
+    end
+end
+
+local function autoClick(times)
+    for _ = 1, times do
+        virtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+        wait(0.05)
+        virtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+        wait(0.05)
+    end
+end
+
+local function combatWithEnemy(target)
+    equipTool("Katana")
+    while target and target:FindFirstChild("Humanoid") and target.Humanoid.Health > 0 do
+        teleportBehind(target)
+        if not isSkillOnCooldown(player.Backpack:FindFirstChild("Lion's Slash")) then
+            equipTool("Lion's Slash")
+            autoClick(5)
+        elseif not isSkillOnCooldown(player.Backpack:FindFirstChild("Conqueror's Field")) then
+            equipTool("Conqueror's Field")
+            autoClick(5)
+        elseif not isSkillOnCooldown(player.Backpack:FindFirstChild("Nadeshiko Field")) then
+            equipTool("Nadeshiko Field")
+            virtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            repeat wait(0.2) until not debrisHolder:FindFirstChild("NadeshikoField")
+        else
+            equipTool("Katana")
+            autoClick(1)
+        end
+        wait(0.5)
+    end
+    unequipTool()
+end
+
+local function farmQuestEnemies()
+    while true do
+        local target = nil
+        for _, enemy in ipairs(workspace.AiCharacters:GetChildren()) do
+            if isQuestEnemy(enemy) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                target = enemy
+                break
+            end
+        end
+        if target then combatWithEnemy(target) else wait(1) end
+    end
+end
+
+-- Toggle and Start Autofarm
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.T then
+        toggle = not toggle
+        sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+    end
+end)
+
+spawn(function()
+    while true do
+        if toggle then
+            if isCharacterAlive() then
+                handleQuest()
+                farmQuestEnemies()
+            else
+                respawnCharacter()
+            end
+        else wait(0.5) end
+        wait(1)
+    end
+end)
