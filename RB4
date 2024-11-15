@@ -75,8 +75,6 @@ local function monitorHealth()
                 if humanoid.Health <= humanoid.MaxHealth * 0.3 then
                     HealthFlag = false  -- Temporarily disable health monitoring
                     respawnInProgress = true  -- Set respawn flag
-                    
-                    -- Set health to 0 to reset character
                     humanoid.Health = 0
                     
                     spawn(function()
@@ -86,7 +84,7 @@ local function monitorHealth()
                             
                             -- Monitor if the 'Customizations' folder is removed
                             if character and character.Parent and not character:FindFirstChild("Customizations") then
-                                wait(0.5)  -- Delay before respawn
+                                wait(1)  -- Delay before respawn
                                 respawnCharacter()
                                 
                                 -- Reset flags after respawn is confirmed
@@ -313,6 +311,13 @@ local function respawnCharacter()
         
         -- Trigger respawn
         spawnRemote:FireServer(1)
+        
+        -- Wait until character respawns
+        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
+        local startTime = tick()
+        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
+            wait(0.5)  -- Check every 0.5 seconds
+        end
         
         -- Confirm respawn and create floating platform if character is detected
         if isCharacterAlive() then
