@@ -89,6 +89,36 @@ local function createFloatingPlatform()
     end
 end
 
+local function monitorHealth()
+    while true do
+        local character = player.Character
+        if character and character:FindFirstChild("Humanoid") then
+            local humanoid = character.Humanoid
+            local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+
+            if healthPercentage <= 30 then
+                humanoid.Health = 0 -- Kill the character
+                sendNotification("Health Monitor", "Health dropped below 30%. Resetting character.")
+
+                -- Disable all functions except respawn and health monitor
+                toggle = false
+                HealthFlag = false
+
+                -- Wait until the character is respawned
+                repeat
+                    wait(0.5)
+                    respawnCharacter()
+                until isCharacterAlive()
+
+                -- Enable functions after respawn
+                HealthFlag = true
+                sendNotification("Health Monitor", "Character respawned. Functions re-enabled.")
+            end
+        end
+        wait(0.1) -- Short delay for health checks
+    end
+end
+
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
     VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
@@ -254,36 +284,6 @@ local function respawnCharacter()
     end
 end
 
-local function monitorHealth()
-    spawn(function()
-        while true do
-            if toggle and isCharacterAlive() and player.Character then
-                local humanoid = player.Character:FindFirstChild("Humanoid")
-                if humanoid then
-                    local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-                    if healthPercentage <= 30 then
-                        -- Set health to 0 to kill the character
-                        humanoid.Health = 0
-                        sendNotification("Health Monitor", "Character health fell below 30%. Resetting...")
-
-                        -- Disable all other functions except respawn and health monitor
-                        toggle = false
-                        HealthFlag = false
-
-                        -- Respawn character
-                        respawnCharacter()
-
-                        -- Re-enable toggle and health monitoring
-                        HealthFlag = true
-                        toggle = true
-                    end
-                end
-            end
-            wait(0.5)
-        end
-    end)
-end
-
 local function hasQuest()
     -- Check if the player currently has the target quest
     local quest = questHolder:FindFirstChild("Quest")
@@ -326,12 +326,12 @@ local function attackEnemy(enemy)
     end
 end
 
-monitorHealth()
--- Updated main loop with HealthFlag
+-- Main loop with additional Nadeshiko Field checks
 spawn(function()
     while true do
-        if toggle and HealthFlag then
+        if toggle then
             -- Check if character is alive and needs to respawn
+            monitorHealthAndReset()
             if not isCharacterAlive() then
                 HealthFlag = false
                 respawnCharacter()
