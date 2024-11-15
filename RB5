@@ -107,29 +107,6 @@ end
 
 monitorHealth()
 
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        
-        -- Trigger respawn
-        spawnRemote:FireServer(1)
-        
-        -- Wait until character respawns
-        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
-        local startTime = tick()
-        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
-            wait(0.5)  -- Check every 0.5 seconds
-        end
-        
-        -- Confirm respawn and create floating platform if character is detected
-        if isCharacterAlive() then
-            createFloatingPlatform()
-            respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
-        end
-    end
-end
-
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -152,6 +129,29 @@ local function createFloatingPlatform()
 
         game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
         sendNotification("Platform", "Floating platform created under character.")
+    end
+end
+
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        
+        -- Trigger respawn
+        spawnRemote:FireServer(1)
+        
+        -- Wait until character respawns
+        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
+        local startTime = tick()
+        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
+            wait(0.5)  -- Check every 0.5 seconds
+        end
+        
+        -- Confirm respawn and create floating platform if character is detected
+        if isCharacterAlive() then
+            createFloatingPlatform()
+            respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
+        end
     end
 end
 
