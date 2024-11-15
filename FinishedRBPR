@@ -64,15 +64,34 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        spawnRemote:FireServer(1)
-        wait(2)
-        createFloatingPlatform()
-        sendNotification("Character Status", "Character respawned successfully.")
-    end
+local function monitorHealth()
+    spawn(function()
+        while true do
+            if toggle and isCharacterAlive() and HealthFlag then
+                local character = player.Character
+                if character and character:FindFirstChild("Humanoid") then
+                    local humanoid = character.Humanoid
+                    local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+                    
+                    if healthPercentage <= 30 then
+                        -- Simulate death
+                        humanoid.Health = 0
+                        sendNotification("Health Monitor", "Health dropped below 30%, resetting character.")
+                        HealthFlag = false -- Disable all functions temporarily
+                        
+                        -- Respawn the character
+                        respawnCharacter()
+                        
+                        -- Allow time for the respawn process
+                        wait(2)
+                        HealthFlag = true -- Re-enable functions after respawn
+                        sendNotification("Health Monitor", "Character reset complete. Resuming operations.")
+                    end
+                end
+            end
+            wait(0.5) -- Monitor health every 0.5 seconds
+        end
+    end)
 end
 
 local function createFloatingPlatform()
@@ -254,6 +273,17 @@ local function takeQuest()
     end
 end
 
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
+    end
+end
+
 local function hasQuest()
     -- Check if the player currently has the target quest
     local quest = questHolder:FindFirstChild("Quest")
@@ -296,42 +326,11 @@ local function attackEnemy(enemy)
     end
 end
 
-local function monitorHealthAndReset()
-    while true do
-        local character = player.Character
-        if character and character:FindFirstChild("Humanoid") then
-            local humanoid = character.Humanoid
-            local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-
-            if healthPercentage <= 30 then
-                humanoid.Health = 0 -- Kill the character
-                sendNotification("Health Monitor", "Health dropped below 30%. Resetting character.")
-
-                -- Disable all functions except respawn and health monitor
-                toggle = false
-                HealthFlag = false
-
-                -- Wait until the character is respawned
-                repeat
-                    wait(0.5)
-                    respawnCharacter()
-                until isCharacterAlive()
-
-                -- Enable functions after respawn
-                HealthFlag = true
-                sendNotification("Health Monitor", "Character respawned. Functions re-enabled.")
-            end
-        end
-        wait(0.1) -- Short delay for health checks
-    end
-end
-
 -- Main loop with additional Nadeshiko Field checks
 spawn(function()
     while true do
         if toggle then
             -- Check if character is alive and needs to respawn
-            monitorHealthAndReset()
             if not isCharacterAlive() then
                 HealthFlag = false
                 respawnCharacter()
@@ -388,3 +387,5 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
         end
     end
 end)
+
+monitorHealth()
