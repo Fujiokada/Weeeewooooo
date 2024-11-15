@@ -89,7 +89,7 @@ local function createFloatingPlatform()
     end
 end
 
-local function monitorHealth()
+local function monitorHealthAndReset()
     while true do
         local character = player.Character
         if character and character:FindFirstChild("Humanoid") then
