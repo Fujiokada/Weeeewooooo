@@ -64,6 +64,17 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
+    end
+end
+
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -243,47 +254,6 @@ local function takeQuest()
     end
 end
 
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        spawnRemote:FireServer(1)
-        wait(2)
-        createFloatingPlatform()
-        sendNotification("Character Status", "Character respawned successfully.")
-    end
-end
-
-local function monitorHealthAndReset()
-    while true do
-        local character = player.Character
-        if character and character:FindFirstChild("Humanoid") then
-            local humanoid = character.Humanoid
-            local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-
-            if healthPercentage <= 30 then
-                humanoid.Health = 0 -- Kill the character
-                sendNotification("Health Monitor", "Health dropped below 30%. Resetting character.")
-
-                -- Disable all functions except respawn and health monitor
-                toggle = false
-                HealthFlag = false
-
-                -- Wait until the character is respawned
-                repeat
-                    wait(0.5)
-                    respawnCharacter()
-                until isCharacterAlive()
-
-                -- Enable functions after respawn
-                HealthFlag = true
-                sendNotification("Health Monitor", "Character respawned. Functions re-enabled.")
-            end
-        end
-        wait(0.1) -- Short delay for health checks
-    end
-end
-
 local function hasQuest()
     -- Check if the player currently has the target quest
     local quest = questHolder:FindFirstChild("Quest")
@@ -323,6 +293,36 @@ local function attackEnemy(enemy)
     -- Stop combat if Nadeshiko Field activates
     if isNadeshikoFieldActive() then
         sendNotification("Combat", "Combat paused due to Nadeshiko Field activation.")
+    end
+end
+
+local function monitorHealthAndReset()
+    while true do
+        local character = player.Character
+        if character and character:FindFirstChild("Humanoid") then
+            local humanoid = character.Humanoid
+            local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+
+            if healthPercentage <= 30 then
+                humanoid.Health = 0 -- Kill the character
+                sendNotification("Health Monitor", "Health dropped below 30%. Resetting character.")
+
+                -- Disable all functions except respawn and health monitor
+                toggle = false
+                HealthFlag = false
+
+                -- Wait until the character is respawned
+                repeat
+                    wait(0.5)
+                    respawnCharacter()
+                until isCharacterAlive()
+
+                -- Enable functions after respawn
+                HealthFlag = true
+                sendNotification("Health Monitor", "Character respawned. Functions re-enabled.")
+            end
+        end
+        wait(0.1) -- Short delay for health checks
     end
 end
 
