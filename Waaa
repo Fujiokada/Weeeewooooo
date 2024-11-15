@@ -1,42 +1,64 @@
--- Services and Variables
 local player = game:GetService("Players").LocalPlayer
-local StarterGui = game:GetService("StarterGui")
-local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
-local virtualInputManager = game:GetService("VirtualInputManager")
-local debrisHolder = workspace:WaitForChild("debrisHolder")
-
-local toggle = true  -- Autofarming toggle
-local respawnInProgress = false
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
+local aiCharacters = workspace:WaitForChild("AiCharacters")
+local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+local targetQuestName = "Defeat Strong Souls"
+local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local punchToolName = "Katana"
+local skillNames = {"Lion's Slash", "Nadeshiko Field", "Conqueror's Will"}
+local teleportPosition = Vector3.new(232, 3, -703)
+local questNPCPosition = Vector3.new(232, 3, -703)
+local autoClickPosition = Vector2.new(903, 478)
 local floatName = "FloatingPlatform"
-local questNpcPosition = Vector3.new(232, 3, -703)  -- NPC position
-local questNpcPrompt = workspace.NPCs.Agor.ProximityPrompt
-local questCheckPath = player.PlayerGui.GameUI.Quests.QuestHolder.Quest.QuestName
-local dialoguePath = player.PlayerGui.GameUI.Dialogue.ScrollingFrame
-local questEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
-local webhookURL = "YOUR_DISCORD_WEBHOOK_URL"  -- Replace with your Discord webhook URL
+local StarterGui = game:GetService("StarterGui")
+local toggle = false
+local lastSkillUse = 0
+local isCharacterAliveFlag = false
+local HealthFlag = true
+local webhookURL = "YOUR_DISCORD_WEBHOOK_URL"
 
--- Utility Functions
 local function sendNotification(title, text)
-    StarterGui:SetCore("SendNotification", { Title = title; Text = text; Duration = 2 })
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 2;
+    })
+end
+
+local function sendDiscordNotification(status, details)
+    local data = {
+        ["username"] = "Quest Notifier",
+        ["embeds"] = {{
+            ["title"] = "**Quest Update: " .. status .. "**",
+            ["description"] = details,
+            ["color"] = status == "Quest Completed" and 65280 or 16711680,
+            ["footer"] = {
+                ["text"] = "Roblox Quest Notifier",
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
+    pcall(function()
+        syn.request({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+    end)
 end
 
 local function isCharacterAlive()
-    local character = workspace:FindFirstChild(player.Name)
-    return character and character:FindFirstChild("Customizations")
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() and not respawnInProgress then
-        respawnInProgress = true
-        game:GetService("ReplicatedStorage").ClientRemotes.SpawnHandler:FireServer(1)
-
-        while not isCharacterAlive() do
-            wait(0.5)
-        end
-
-        respawnInProgress = false
-    end
+    local character = workspace:FindFirstChild("Venqtrix")
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
+    return isCharacterAliveFlag
 end
 
 local function createFloatingPlatform()
@@ -48,52 +70,27 @@ local function createFloatingPlatform()
         Float.Transparency = 1
         Float.Size = Vector3.new(2, 0.2, 1.5)
         Float.Anchored = true
+        local FloatValue = -3.1
 
-        game:GetService("RunService").Heartbeat:Connect(function()
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, -3.1, 0)
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
             else
                 Float:Destroy()
             end
-        end)
+            wait(0.2)
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        sendNotification("Platform", "Floating platform created under character.")
     end
 end
 
-local function hasStrongSoulQuest()
-    local quest = questCheckPath:FindFirstChild("ContentText")
-    return quest and quest.Text == "Defeat Strong Souls"
-end
-
-local function fireProximityPrompt(prompt)
-    if prompt and prompt:IsA("ProximityPrompt") then
-        prompt:InputHoldBegin()
-        wait(0.5)
-        prompt:InputHoldEnd()
-    end
-end
-
-local function isQuestCompletionDialogue()
-    return dialoguePath:FindFirstChild("ActiveQuest") ~= nil
-end
-
-local function isQuestAvailableDialogue()
-    return dialoguePath:FindFirstChild("AvailableQuest") ~= nil
-end
-
-local function completeQuest()
-    local dialogueHandler = game:GetService("ReplicatedStorage").ClientRemotes.DialogueHandler
-    for i = 1, 2 do
-        dialogueHandler:FireServer(2)
-        wait(0.5)
-    end
-end
-
-local function takeOrRetakeQuest()
-    local dialogueHandler = game:GetService("ReplicatedStorage").ClientRemotes.DialogueHandler
-    for i = 1, 4 do
-        dialogueHandler:FireServer(1)
-        wait(0.5)
-    end
+local function simulateHoldClick(duration)
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+    wait(duration)
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
 end
 
 local function equipTool(toolName)
@@ -104,69 +101,147 @@ local function equipTool(toolName)
 end
 
 local function unequipTool()
-    for _, tool in ipairs(player.Character:GetChildren()) do
+    local character = player.Character
+    for _, tool in ipairs(character:GetChildren()) do
         if tool:IsA("Tool") then
             tool.Parent = player.Backpack
         end
     end
 end
 
-local function teleportBehind(target)
-    if target and target:FindFirstChild("HumanoidRootPart") then
-        player.Character:SetPrimaryPartCFrame(target.HumanoidRootPart.CFrame * CFrame.new(0, 0, 7):LookAt(target.HumanoidRootPart.Position))
-    end
+local function isNadeshikoFieldActive()
+    return workspace.debrisHolder:FindFirstChild("NadeshikoField") ~= nil
 end
 
-local function isQuestEnemy(character)
-    for _, name in ipairs(questEnemies) do
-        if character.Name:match(name) then
-            return true
+local function activateSkills(currentEnemy)
+    local shouldUseNadeshiko = false
+    local shouldUseConqueror = false
+
+    if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
+        local humanoid = currentEnemy.Humanoid
+        local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+        shouldUseNadeshiko = healthPercentage > 30 
+        shouldUseConqueror = healthPercentage > 30
+    end
+
+    unequipTool()
+
+    local conquerorWillTool = player.Backpack:FindFirstChild("Conqueror's Will")
+    if shouldUseConqueror and conquerorWillTool then
+        equipTool("Conqueror's Will")
+        wait(0.5)
+        unequipTool()
+    end
+
+    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
+    if lionSlashTool then
+        equipTool("Lion's Slash")
+        wait(0.5)
+        unequipTool()
+    end
+
+    if shouldUseNadeshiko and not isNadeshikoFieldActive() then
+        local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
+        if nadeshikoTool then
+            equipTool("Nadeshiko Field")
+            simulateHoldClick(5)
+            unequipTool()
         end
     end
-    return false
+
+    equipTool(punchToolName)
+    lastSkillUse = tick()
 end
 
-local function combatWithEnemy(target)
-    equipTool("Katana")
-    while target and target.Parent and target:FindFirstChild("Humanoid") and target.Humanoid.Health > 0 do
-        teleportBehind(target)
-        equipTool("Katana")
-        virtualInputManager:SendMouseButtonEvent(1095, 530, 0, true, game, 0)
-        wait(0.05)
-        virtualInputManager:SendMouseButtonEvent(1095, 530, 0, false, game, 0)
+local function completeQuest()
+    while isNadeshikoFieldActive() do
         wait(0.5)
     end
-    unequipTool()
-end
+    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
+    player.Character:SetPrimaryPartCFrame(CFrame.new(questNPCPosition))
+    wait(1)
 
-local function farmQuestEnemies()
-    for _, enemy in ipairs(workspace.AiCharacters:GetChildren()) do
-        if isQuestEnemy(enemy) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-            combatWithEnemy(enemy)
+    local npc = workspace.NPCs:FindFirstChild("Agor")
+    if npc then
+        local prompt = npc:FindFirstChild("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+            for i = 1, 2 do
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                    wait(1)
+                else
+                    sendNotification("Error", "DialogueHandler not found!")
+                    return
+                end
+            end
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            wait(1)
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            sendNotification("Quest", "Quest completed successfully.")
+            sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
+        else
+            sendNotification("Error", "Proximity prompt for NPC not found!")
         end
+    else
+        sendNotification("Error", "Quest NPC not found in workspace!")
     end
 end
 
--- Autofarming Loop
+-- Main loop with necessary checks
 spawn(function()
     while true do
-        wait(1)
-        if toggle and isCharacterAlive() then
-            respawnCharacter()
-            createFloatingPlatform()
-            if not hasStrongSoulQuest() then
-                fireProximityPrompt(questNpcPrompt)
-                takeOrRetakeQuest()
+        if toggle then
+            if not isCharacterAlive() then
+                HealthFlag = false
+                wait(2)
+                spawnRemote:FireServer(1)
+                wait(5)
+                createFloatingPlatform()
+            else
+                HealthFlag = true
             end
-            farmQuestEnemies()
+
+            if HealthFlag then
+                if not hasQuest() and not isNadeshikoFieldActive() then
+                    takeQuest()
+                    wait(1)
+                end
+
+                if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
+                    completeQuest()
+                    wait(1)
+                    takeQuest()
+                    wait(1)
+                end
+
+                if hasQuest() and not isQuestCompleted() and not isNadeshikoFieldActive() then
+                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            for _, targetName in ipairs(targetEnemies) do
+                                if enemy.Name:find(targetName) then
+                                    attackEnemy(enemy)
+                                    if isQuestCompleted() then
+                                        completeQuest()
+                                        takeQuest()
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end
+        wait(0.1)
     end
 end)
 
--- Toggle Autofarming
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if not gameProcessedEvent and input.KeyCode == Enum.KeyCode.T then
-        toggle = not toggle
-        sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.T then
+            toggle = not toggle
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+        end
     end
 end)
