@@ -65,38 +65,28 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
--- Monitor health and trigger respawn if necessary
+-- Main health monitoring loop (prioritized)
 local function monitorHealth()
     spawn(function()
         while true do
             wait(0.1)
             
+            -- Prioritize health check
             if player.Character and player.Character:FindFirstChild("Humanoid") and HealthFlag and not respawnInProgress then
                 local humanoid = player.Character.Humanoid
                 if humanoid.Health <= humanoid.MaxHealth * 0.3 then
-                    HealthFlag = false  -- Temporarily disable health monitoring
+                    HealthFlag = false  -- Temporarily disable health monitoring to avoid reset conflicts
                     respawnInProgress = true  -- Set respawn flag
                     humanoid.Health = 0
                     
+                    -- Start respawn process
                     spawn(function()
-                        while respawnInProgress do
-                            wait(0.1)
-                            local character = workspace:FindFirstChild(player.Name)
-                            
-                            -- Monitor if the 'Customizations' folder is removed
-                            if character and character.Parent and not character:FindFirstChild("Customizations") then
-                                wait(1)  -- Delay before respawn
-                                respawnCharacter()
-                                
-                                -- Reset flags after respawn is confirmed
-                                HealthFlag = true
-                                respawnInProgress = false
-                                break
-                            elseif not character then
-                                -- Exit loop if character is nil
-                                break
-                            end
-                        end
+                        wait(2)  -- Wait briefly before respawning
+                        respawnCharacter()  -- Trigger respawn logic
+
+                        -- Reset after respawn completes
+                        HealthFlag = true
+                        respawnInProgress = false
                     end)
                 end
             end
@@ -305,17 +295,15 @@ local function takeQuest()
     end
 end
 
--- Function to respawn the character safely
+-- Reset the character (respawn logic)
 local function respawnCharacter()
-    if respawnInProgress then return end  -- Prevent multiple respawn calls
-
     if not isCharacterAlive() then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
         wait(2)
-        
+
         -- Trigger respawn
         spawnRemote:FireServer(1)
-        
+
         -- Wait until character respawns
         local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
         local startTime = tick()
@@ -323,13 +311,12 @@ local function respawnCharacter()
             wait(0.5)  -- Check every 0.5 seconds
         end
         
-        -- Confirm respawn and create floating platform if character is detected
+        -- Confirm respawn and reset flags if successful
         if isCharacterAlive() then
             createFloatingPlatform()
             respawnInProgress = false  -- Reset the respawn flag once respawn is confirmed
         else
-            sendNotification("Error", "Character failed to respawn after timeout.")
-            respawnInProgress = false  -- Prevent blocking further actions
+            sendNotification("Error", "Respawn failed!")
         end
     end
 end
@@ -357,21 +344,26 @@ local function isLowHealth()
     return false
 end
 
+-- Monitor for health reset or combat stop due to low health or Nadeshiko Field
 local function attackEnemy(enemy)
-    if isLowHealth() then return end  -- Prevent attack if health is low
+    if isLowHealth() or isNadeshikoFieldActive() then
+        return  -- Skip combat if health is low or Nadeshiko Field is active
+    end
 
+    -- Combat logic if health is good and Nadeshiko Field is not active
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
-    -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
+        -- Combat behavior
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
-        -- Use skills after teleporting to each new enemy, pass enemy for health check
+        -- Skill activation and cooldown handling
         if tick() - lastSkillUse > 5 then
-            activateSkills(enemy)  -- Pass the enemy to check its health for Nadeshiko Field
+            activateSkills(enemy)
         end
 
+        -- Attack action (LMB click simulation)
         equipTool(punchToolName)
         game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
         wait(0.1)
@@ -379,7 +371,7 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 
-    -- Stop combat if Nadeshiko Field activates or if health drops
+    -- Combat stop condition
     if isNadeshikoFieldActive() or isLowHealth() then
         sendNotification("Combat", "Combat paused due to Nadeshiko Field activation or low health.")
     end
@@ -392,11 +384,11 @@ local function activateSkills(currentEnemy)
 end
 
 
--- Main loop with health monitoring and combat actions
+-- Main loop with additional health monitoring and existing functionality
 spawn(function()
     while true do
         if toggle then
-            -- Monitor health
+            -- Run health monitor to check if reset is needed
             monitorHealth()
 
             -- If character is dead, respawn
