@@ -100,7 +100,7 @@ local function respawnCharacter()
         deathNotificationSent = true  -- Mark the notification as sent
         wait(3)
         spawnRemote:FireServer(1)
-        wait(2)
+        wait(3)
         if isCharacterAlive() then
             deathNotificationSent = false
             createFloatingPlatform()
