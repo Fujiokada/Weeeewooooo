@@ -129,6 +129,7 @@ local function monitorHealth()
                         -- Allow time for the respawn process
                         wait(2)
                         HealthFlag = true -- Re-enable functions after respawn
+                        if isCharacterAlive() then
                         sendNotification("Health Monitor", "Character reset complete. Resuming operations.")
                     end
                 end
