@@ -377,9 +377,13 @@ local function attackEnemy(enemy)
 
     if isLowHealth() then return end  -- Prevent attack if health is low
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+
+    -- Track if the enemy is a boss or special enemy
+    local isEnemyBoss = isBoss(enemy)
+    local isEnemySpecial = isSpecialEnemy(enemy)
+
     -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
-
         -- Validate character state before each action
         if not isCharacterAlive() then
             respawnCharacter()
@@ -401,11 +405,23 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 
+    -- Check if the enemy has been defeated
+    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health <= 0 then
+        if isEnemyBoss then
+            sendNotification("Combat", "Boss defeated: " .. enemy.Name)
+            sendDiscordNotification("Boss Defeated", "A boss named '" .. enemy.Name .. "' was defeated by Venqtrix.")
+        elseif isEnemySpecial then
+            sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
+            sendDiscordNotification("Special Enemy Defeated", "A special enemy named '" .. enemy.Name .. "' was defeated by Venqtrix.")
+        end
+    end
+
     -- Stop combat if Nadeshiko Field activates or if health drops
     if isNadeshikoFieldActive() or isLowHealth() then
         sendNotification("Combat", "Combat paused due to Nadeshiko Field activation or low health.")
     end
 end
+
 
 local function activateSkills(currentEnemy)
     if isLowHealth() then return end  -- Prevent skill usage if health is low
