@@ -334,10 +334,6 @@ local function isLowHealth()
     return false
 end
 
-local function resetNotifiedEnemies()
-    notifiedEnemies = {}
-end
-
 -- Helper function to check if an enemy is a boss
 local function isBoss(enemy)
     if enemy:FindFirstChild("Head") 
@@ -369,7 +365,9 @@ local function isSpecialEnemy(enemy)
 end
 
 local function attackEnemy(enemy)
+    if not notifiedEnemies[enemy.Name] then
     if isLowHealth() then return end  -- Prevent attack if health is low
+    notifiedEnemies[enemy.Name] = true
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
     -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
@@ -398,6 +396,10 @@ local function activateSkills(currentEnemy)
     if isLowHealth() then return end  -- Prevent skill usage if health is low
 
     -- Existing skill logic here
+end
+
+local function resetNotifiedEnemies()
+    notifiedEnemies = {}
 end
 
 -- Modified main loop
