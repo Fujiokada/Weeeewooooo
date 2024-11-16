@@ -372,6 +372,7 @@ end
 
 local function attackEnemy(enemy)
     if isLowHealth() then return end  -- Prevent attack if health is low
+    if not notifiedEnemies[enemy] then
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
     notifiedEnemies[enemy] = true
     -- Exit combat if Nadeshiko Field becomes active
