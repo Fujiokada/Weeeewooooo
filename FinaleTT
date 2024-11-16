@@ -98,7 +98,7 @@ local function respawnCharacter()
     if not isCharacterAlive() and not deathNotificationSent then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
         deathNotificationSent = true  -- Mark the notification as sent
-        wait(2)
+        wait(3)
         spawnRemote:FireServer(1)
         wait(2)
         if isCharacterAlive() then
