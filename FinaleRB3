@@ -95,17 +95,8 @@ local function respawnCharacter()
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
         deathNotificationSent = true  -- Mark the notification as sent
         wait(2)
-
-        -- Trigger respawn
         spawnRemote:FireServer(1)
 
-        -- Wait until character respawns
-        local maxWaitTime = 5  -- Maximum wait time to avoid infinite loop
-        local startTime = tick()
-        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
-            wait(0.5)  -- Check every 0.5 seconds
-        end
-        
         if isCharacterAlive() then
             deathNotificationSent = false
             createFloatingPlatform()
