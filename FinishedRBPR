@@ -64,6 +64,17 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        spawnRemote:FireServer(1)
+        wait(2)
+        createFloatingPlatform()
+        sendNotification("Character Status", "Character respawned successfully.")
+    end
+end
+
 local function monitorHealth()
     spawn(function()
         while true do
