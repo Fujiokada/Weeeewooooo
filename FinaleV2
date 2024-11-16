@@ -242,6 +242,7 @@ local function teleportToPositionIfNadeshikoInactive(position)
 end
 
 local function completeQuest()
+    respawnCharacter()
     while isNadeshikoFieldActive() do
         wait(0.5)
     end
@@ -277,6 +278,7 @@ local function completeQuest()
 end
 
 local function takeQuest()
+    respawnCharacter()
     while isNadeshikoFieldActive() do
         wait(0.5)
     end
