@@ -95,17 +95,21 @@ local function createFloatingPlatform()
 end
 
 local function respawnCharacter()
-    if not isCharacterAlive() and not deathNotificationSent then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        deathNotificationSent = true  -- Mark the notification as sent
-        wait(2)
-        spawnRemote:FireServer(1)
-        wait(2)
-        if isCharacterAlive() then
-            deathNotificationSent = false
-            createFloatingPlatform()
+    spawn(function()
+        while true do
+            if toggle and not isCharacterAlive() and not deathNotificationSent then
+                sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+                deathNotificationSent = true  -- Mark the notification as sent
+                spawnRemote:FireServer(1)
+                wait(3)
+                if isCharacterAlive() then
+                    deathNotificationSent = false
+                    createFloatingPlatform()
+                end
+            end
+            wait(0.5) -- Prevent high CPU usage by adding a delay
         end
-    end
+    end)
 end
 
 local function monitorHealth()
@@ -481,3 +485,4 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
 end)
 
 monitorHealth()
+respawnCharacter()
