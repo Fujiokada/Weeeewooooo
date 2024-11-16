@@ -60,6 +60,10 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
+local function resetNotifiedEnemies()
+    notifiedEnemies = {}
+end
+
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
@@ -101,6 +105,7 @@ local function respawnCharacter()
         if isCharacterAlive() then
             deathNotificationSent = false
             createFloatingPlatform()
+            resetNotifiedEnemies()
         end
     end
 end
@@ -270,6 +275,7 @@ local function completeQuest()
             replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
             sendNotification("Quest", "Quest completed successfully.")
             sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
+            resetNotifiedEnemies()
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
         end
@@ -334,10 +340,6 @@ local function isLowHealth()
     return false
 end
 
-local function resetNotifiedEnemies()
-    notifiedEnemies = {}
-end
-
 -- Helper function to check if an enemy is a boss
 local function isBoss(enemy)
     if enemy:FindFirstChild("Head") 
@@ -370,9 +372,8 @@ end
 
 local function attackEnemy(enemy)
     if isLowHealth() then return end  -- Prevent attack if health is low
-
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-
+    notifiedEnemies[enemy] = true
     -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
