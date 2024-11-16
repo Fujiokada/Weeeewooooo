@@ -370,10 +370,22 @@ local function isSpecialEnemy(enemy)
 end
 
 local function attackEnemy(enemy)
+    if not isCharacterAlive() then 
+        respawnCharacter() 
+        return -- Exit the function to allow respawnCharacter to handle the flow
+    end
+
     if isLowHealth() then return end  -- Prevent attack if health is low
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
     -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
+
+        -- Validate character state before each action
+        if not isCharacterAlive() then
+            respawnCharacter()
+            return -- Exit to handle respawn flow properly
+        end
+
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
         player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))
 
