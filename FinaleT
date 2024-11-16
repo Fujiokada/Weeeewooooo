@@ -369,9 +369,7 @@ local function isSpecialEnemy(enemy)
 end
 
 local function attackEnemy(enemy)
-    if not notifiedEnemies[enemy.Name] then
     if isLowHealth() then return end  -- Prevent attack if health is low
-    notifiedEnemies[enemy.Name] = true
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
     -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
@@ -444,6 +442,7 @@ spawn(function()
                             end
                             targetFound = true
                             attackEnemy(enemy)  -- Attack the special enemy or boss
+                            resetNotifiedEnemies() -- Reset notifications after quest completion
                             break
                         end
                     end
