@@ -277,80 +277,95 @@ end
 
 local function completeQuest()
     respawnCharacter()
+    
     while isNadeshikoFieldActive() do
-        wait(0.5)
+        wait(0.5) -- Wait until the Nadeshiko Field is inactive
     end
+    
     sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
-    teleportToPositionIfNadeshikoInactive(questNPCPosition)
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for i = 1, 2 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                    wait(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
+    
+    local questCompleted = false
+    
+    while not questCompleted do
+        teleportToPositionIfNadeshikoInactive(questNPCPosition)
+        wait(1)
+        
+        local npc = workspace.NPCs:FindFirstChild("Agor")
+        if npc then
+            local prompt = npc:FindFirstChild("ProximityPrompt")
+            if prompt then
+                fireproximityprompt(prompt)
+                for i = 1, 2 do
+                    if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                        wait(1)
+                    else
+                        sendNotification("Error", "DialogueHandler not found!")
+                        return
+                    end
                 end
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                wait(1)
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                
+                if isQuestCompleted() then
+                    sendNotification("Quest", "Quest completed successfully.")
+                    sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
+                    questCompleted = true
+                end
+            else
+                sendNotification("Error", "Proximity prompt for NPC not found!")
             end
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            wait(1)
-            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-            sendNotification("Quest", "Quest completed successfully.")
-            sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
         else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
+            sendNotification("Error", "Quest NPC not found in workspace!")
         end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
+        wait(1) -- Retry every second
     end
 end
 
 local function takeQuest()
     respawnCharacter()
+    
     while isNadeshikoFieldActive() do
-        wait(0.5)
+        wait(0.5) -- Wait until the Nadeshiko Field is inactive
     end
+    
     sendNotification("Quest", "Attempting to retake quest...")
-    teleportToPositionIfNadeshikoInactive(teleportPosition)
-    wait(1)
-
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-            for _ = 1, 4 do
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
+    
+    local questTaken = false
+    
+    while not questTaken do
+        teleportToPositionIfNadeshikoInactive(teleportPosition)
+        wait(1)
+        
+        local npc = workspace.NPCs:FindFirstChild("Agor")
+        if npc then
+            local prompt = npc:FindFirstChild("ProximityPrompt")
+            if prompt then
+                fireproximityprompt(prompt)
+                for _ = 1, 4 do
+                    if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    else
+                        sendNotification("Error", "DialogueHandler not found!")
+                        return
+                    end
+                    wait(1)
                 end
-                wait(1)
+                
+                if hasQuest() then
+                    sendNotification("Quest", "Quest successfully retaken.")
+                    sendDiscordNotification("Quest Retaken", "Venqtrix has retaken the quest 'Defeat Strong Souls'.")
+                    questTaken = true
+                end
+            else
+                sendNotification("Error", "Proximity prompt for NPC not found!")
             end
-            sendNotification("Quest", "Quest successfully retaken.")
-            sendDiscordNotification("Quest Retaken", "Venqtrix has retaken the quest 'Defeat Strong Souls'.")
         else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
+            sendNotification("Error", "Quest NPC not found in workspace!")
         end
-    else
-        sendNotification("Error", "Quest NPC not found in workspace!")
+        wait(1) -- Retry every second
     end
-end
-
-local function hasQuest()
-    -- Check if the player currently has the target quest
-    local quest = questHolder:FindFirstChild("Quest")
-    if quest and quest:FindFirstChild("QuestName") then
-        return quest.QuestName.ContentText == targetQuestName
-    end
-    return false
 end
 
 local function isQuestCompleted()
