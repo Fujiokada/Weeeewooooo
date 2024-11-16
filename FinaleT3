@@ -334,10 +334,6 @@ local function isLowHealth()
     return false
 end
 
-local function resetNotifiedEnemies()
-    notifiedEnemies = {}
-end
-
 -- Helper function to check if an enemy is a boss
 local function isBoss(enemy)
     if enemy:FindFirstChild("Head") 
@@ -394,6 +390,10 @@ local function attackEnemy(enemy)
     if isNadeshikoFieldActive() or isLowHealth() then
         sendNotification("Combat", "Combat paused due to Nadeshiko Field activation or low health.")
     end
+end
+
+local function resetNotifiedEnemies()
+    notifiedEnemies = {}
 end
 
 local function activateSkills(currentEnemy)
