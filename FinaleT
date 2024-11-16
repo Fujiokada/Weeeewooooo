@@ -60,9 +60,6 @@ local function sendDiscordNotification(status, details)
     end)
 end
 
-local function resetNotifiedEnemies()
-    notifiedEnemies = {}
-end
 
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
@@ -93,6 +90,10 @@ local function createFloatingPlatform()
         game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
         sendNotification("Platform", "Floating platform created under character.")
     end
+end
+
+local function resetNotifiedEnemies()
+    notifiedEnemies = {}
 end
 
 local function respawnCharacter()
