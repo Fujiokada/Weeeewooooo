@@ -520,6 +520,7 @@ spawn(function()
                     sendNotification("Quest", "No active quest, attempting to start quest.")
                     takeQuest()
                     wait(1)
+                    resetNotifiedEnemies()
                 end
 
                 -- If quest is completed, turn it in and retake it
