@@ -370,9 +370,7 @@ end
 
 local function attackEnemy(enemy)
     if isLowHealth() then return end  -- Prevent attack if health is low
-    if not notifiedEnemies[enemy] then
     sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
-    notifiedEnemies[enemy] = true
     -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
         local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
