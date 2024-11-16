@@ -334,6 +334,10 @@ local function isLowHealth()
     return false
 end
 
+local function resetNotifiedEnemies()
+    notifiedEnemies = {}
+end
+
 -- Helper function to check if an enemy is a boss
 local function isBoss(enemy)
     if enemy:FindFirstChild("Head") 
@@ -396,10 +400,6 @@ local function activateSkills(currentEnemy)
     if isLowHealth() then return end  -- Prevent skill usage if health is low
 
     -- Existing skill logic here
-end
-
-local function resetNotifiedEnemies()
-    notifiedEnemies = {}
 end
 
 -- Modified main loop
