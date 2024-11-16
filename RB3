@@ -64,6 +64,53 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        local FloatValue = -3.1
+
+        local function FloatPadLoop()
+            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+            else
+                Float:Destroy()
+            end
+            wait(0.2)
+        end
+
+        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
+        sendNotification("Platform", "Floating platform created under character.")
+    end
+end
+
+local function respawnCharacter()
+    if not isCharacterAlive() then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        wait(2)
+        
+        -- Trigger respawn
+        spawnRemote:FireServer(1)
+        
+        -- Wait until character respawns
+        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
+        local startTime = tick()
+        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
+            wait(0.5)  -- Check every 0.5 seconds
+        end
+        
+        -- Confirm respawn and create floating platform if character is detected
+        if isCharacterAlive() then
+            createFloatingPlatform()
+        end
+    end
+end
+
 -- Health Monitoring and Auto-Respawn System
 local function monitorHealth()
     spawn(function()
@@ -103,33 +150,6 @@ local function monitorHealth()
             end
         end
     end)
-end
-
-monitorHealth()
-
-local function createFloatingPlatform()
-    local character = player.Character
-    if character and not character:FindFirstChild(floatName) then
-        local Float = Instance.new('Part')
-        Float.Name = floatName
-        Float.Parent = character
-        Float.Transparency = 1
-        Float.Size = Vector3.new(2, 0.2, 1.5)
-        Float.Anchored = true
-        local FloatValue = -3.1
-
-        local function FloatPadLoop()
-            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
-                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
-            else
-                Float:Destroy()
-            end
-            wait(0.2)
-        end
-
-        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
-        sendNotification("Platform", "Floating platform created under character.")
-    end
 end
 
 local function simulateHoldClick(duration)
@@ -306,28 +326,6 @@ local function takeQuest()
     end
 end
 
-local function respawnCharacter()
-    if not isCharacterAlive() then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        wait(2)
-        
-        -- Trigger respawn
-        spawnRemote:FireServer(1)
-        
-        -- Wait until character respawns
-        local maxWaitTime = 10  -- Maximum wait time to avoid infinite loop
-        local startTime = tick()
-        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
-            wait(0.5)  -- Check every 0.5 seconds
-        end
-        
-        -- Confirm respawn and create floating platform if character is detected
-        if isCharacterAlive() then
-            createFloatingPlatform()
-        end
-    end
-end
-
 local function hasQuest()
     -- Check if the player currently has the target quest
     local quest = questHolder:FindFirstChild("Quest")
@@ -390,9 +388,6 @@ end
 spawn(function()
     while true do
         if toggle then
-            -- Run health monitor to check if reset is needed
-            monitorHealth()
-
             -- If character is dead, respawn
             if not isCharacterAlive() then
                 HealthFlag = false
@@ -450,3 +445,5 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
         end
     end
 end)
+
+monitorHealth()
