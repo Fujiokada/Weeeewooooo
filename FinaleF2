@@ -300,7 +300,10 @@ local function isLowHealth()
 end
 
 local function completeQuest()
-    respawnCharacter()
+        if not isCharacterAlive() then 
+        respawnCharacter() 
+        return -- Exit the function to allow respawnCharacter to handle the flow
+    end
     
     while isNadeshikoFieldActive() do
         wait(0.5) -- Wait until the Nadeshiko Field is inactive
@@ -348,7 +351,10 @@ local function completeQuest()
 end
 
 local function takeQuest()
-    respawnCharacter()
+    if not isCharacterAlive() then 
+        respawnCharacter() 
+        return -- Exit the function to allow respawnCharacter to handle the flow
+    end
     
     while isNadeshikoFieldActive() do
         wait(0.5) -- Wait until the Nadeshiko Field is inactive
