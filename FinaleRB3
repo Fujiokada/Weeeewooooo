@@ -97,6 +97,13 @@ local function respawnCharacter()
         wait(2)
         spawnRemote:FireServer(1)
 
+        -- Wait until character respawns
+        local maxWaitTime = 20  -- Maximum wait time to avoid infinite loop
+        local startTime = tick()
+        while not isCharacterAlive() and tick() - startTime < maxWaitTime do
+            wait(0.5)  -- Check every 0.5 seconds
+        end
+
         if isCharacterAlive() then
             deathNotificationSent = false
             createFloatingPlatform()
