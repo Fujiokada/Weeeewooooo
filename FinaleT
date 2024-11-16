@@ -91,10 +91,6 @@ local function createFloatingPlatform()
     end
 end
 
-local function resetNotifiedEnemies()
-    notifiedEnemies = {}
-end
-
 local function respawnCharacter()
     if not isCharacterAlive() and not deathNotificationSent then
         sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
@@ -105,7 +101,6 @@ local function respawnCharacter()
         if isCharacterAlive() then
             deathNotificationSent = false
             createFloatingPlatform()
-            resetNotifiedEnemies()
         end
     end
 end
@@ -275,7 +270,6 @@ local function completeQuest()
             replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
             sendNotification("Quest", "Quest completed successfully.")
             sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
-            resetNotifiedEnemies()
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
         end
@@ -338,6 +332,10 @@ local function isLowHealth()
         return humanoid.Health <= humanoid.MaxHealth * 0.2
     end
     return false
+end
+
+local function resetNotifiedEnemies()
+    notifiedEnemies = {}
 end
 
 -- Helper function to check if an enemy is a boss
