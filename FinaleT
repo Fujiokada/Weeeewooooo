@@ -402,69 +402,65 @@ end
 spawn(function()
     while true do
         if toggle then
-            local specialEnemy = nil
-            local bossEnemy = nil
-
-            -- Look for special enemies first
-            for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                if isSpecialEnemy(enemy) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                    specialEnemy = enemy
-                    break
-                end
+            -- Check if the character is dead, and respawn if needed
+            if not isCharacterAlive() then
+                HealthFlag = false
+                respawnCharacter()
+            else
+                HealthFlag = true
             end
 
-            -- If no special enemies, look for bosses
-            if not specialEnemy then
+            if HealthFlag then
+                -- If no active quest, start or retake the quest
+                if not hasQuest() and not isNadeshikoFieldActive() then
+                    sendNotification("Quest", "No active quest, attempting to start quest.")
+                    takeQuest()
+                    wait(1)
+                end
+
+                -- If quest is completed, turn it in and retake it
+                if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
+                    sendNotification("Quest", "Quest completed, turning in.")
+                    completeQuest()
+                    wait(1)
+                    takeQuest() -- Retake quest immediately after completion
+                    wait(1)
+                end
+
+                -- Prioritize attacking special enemies or bosses
+                local targetFound = false
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                    if isBoss(enemy) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        bossEnemy = enemy
-                        break
+                    if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        if isBoss(enemy) or isSpecialEnemy(enemy) then
+                            targetFound = true
+                            sendNotification("Combat", "Prioritizing special enemy or boss: " .. enemy.Name)
+                            attackEnemy(enemy)  -- Attack the special enemy or boss
+                            break
+                        end
                     end
                 end
-            end
 
-            -- Prioritize special enemies or bosses
-            if specialEnemy then
-                if currentPriority ~= "special" or lastTarget ~= specialEnemy then
-                    currentPriority = "special"
-                    lastTarget = specialEnemy
-                    sendNotification("Combat", "Prioritizing special enemy: " .. specialEnemy.Name)
-                end
-                attackEnemy(specialEnemy)
-            elseif bossEnemy then
-                if currentPriority ~= "boss" or lastTarget ~= bossEnemy then
-                    currentPriority = "boss"
-                    lastTarget = bossEnemy
-                    sendNotification("Combat", "Prioritizing boss enemy: " .. bossEnemy.Name)
-                end
-                attackEnemy(bossEnemy)
-            else
-                -- Default to normal quest enemies
-                currentPriority = "normal"
-                for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                    for _, targetName in ipairs(targetEnemies) do
-                        if enemy.Name:find(targetName) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            if lastTarget ~= enemy then
-                                lastTarget = enemy
-                                sendNotification("Combat", "Attacking quest enemy: " .. enemy.Name)
+                -- If no special enemies or bosses are found, attack quest enemies
+                if not targetFound and hasQuest() and not isQuestCompleted() and not isNadeshikoFieldActive() then
+                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                        if isCharacterAlive() and HealthFlag and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            for _, targetName in ipairs(targetEnemies) do
+                                if enemy.Name:find(targetName) then
+                                    attackEnemy(enemy)
+                                    -- Check quest completion status after each enemy
+                                    if isQuestCompleted() then
+                                        completeQuest()
+                                        takeQuest()
+                                        break
+                                    end
+                                end
                             end
-                            attackEnemy(enemy)
-                            break
                         end
                     end
                 end
             end
         end
         wait(0.1)
-    end
-end)
-
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
-    if not gameProcessedEvent then
-        if input.KeyCode == Enum.KeyCode.T then
-            toggle = not toggle
-            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
-        end
     end
 end)
 
