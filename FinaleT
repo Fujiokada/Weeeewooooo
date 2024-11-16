@@ -474,4 +474,13 @@ spawn(function()
     end
 end)
 
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.T then
+            toggle = not toggle
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+        end
+    end
+end)
+
 monitorHealth()
