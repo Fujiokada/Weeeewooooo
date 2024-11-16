@@ -429,11 +429,22 @@ local function attackEnemy(enemy)
     end
 
     if isLowHealth() then return end  -- Prevent attack if health is low
-    sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
 
-    -- Track if the enemy is a boss or special enemy
+    -- Check if the enemy is a boss or special enemy
     local isEnemyBoss = isBoss(enemy)
     local isEnemySpecial = isSpecialEnemy(enemy)
+
+    -- Notify only once per enemy
+    if not notifiedEnemies[enemy] then
+        if isEnemyBoss then
+            sendNotification("Combat", "Engaging boss: " .. enemy.Name)
+        elseif isEnemySpecial then
+            sendNotification("Combat", "Engaging special enemy: " .. enemy.Name)
+        else
+            sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+        end
+        notifiedEnemies[enemy] = true -- Mark this enemy as notified
+    end
 
     -- Exit combat if Nadeshiko Field becomes active
     while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do
@@ -467,6 +478,8 @@ local function attackEnemy(enemy)
             sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
             sendBossKillNotification("Special Enemy Defeated", "A special enemy named '" .. enemy.Name .. "' was defeated by Venqtrix.")
         end
+
+        notifiedEnemies[enemy] = nil -- Reset notification tracking for this enemy
     end
 
     -- Stop combat if Nadeshiko Field activates or if health drops
