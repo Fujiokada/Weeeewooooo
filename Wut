@@ -147,10 +147,10 @@ local function respawnCharacter()
 
     isRespawning = true
     sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-    wait(2)
+    wait(3)
 
     spawnRemote:FireServer(1) -- Server call to respawn
-    wait(2) -- Allow time for the respawn process
+    wait(3) -- Allow time for the respawn process
 
     -- Wait for the character to fully respawn
     while not isCharacterAlive() do
@@ -170,9 +170,6 @@ local function ensureCharacterIsAlive()
         wait(0.5) -- Ensure there's a short delay between checks
     end
 end
-
--- Track respawn state to avoid conflicts
-local isRespawning = false
 
 -- Monitor health and respawn if necessary
 local function monitorHealth()
