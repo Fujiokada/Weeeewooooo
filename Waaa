@@ -427,24 +427,41 @@ local function handleQuest(npcName, questAction)
 
             local dialogueType = waitForDialogueButtons(5)
             if dialogueType == "CompleteQuest" and questAction == "Complete" then
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                -- Fire remotes to complete the quest
+                sendNotification("Debug", "Attempting to complete quest...")
+                
+                -- Adjusted remote fire sequence
+                for i = 1, 3 do
+                    ensureCharacterIsAlive() -- Ensure the player is alive during the interaction
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2) -- Open quest dialogue
+                    wait(0.5)
+                end
+
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Confirm quest completion
                 wait(1)
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+
                 if isQuestCompleted() then
                     sendNotification("Quest", "Quest completed successfully.")
                     sendDiscordNotification("Quest Completed", "The quest was completed successfully.")
                     success = true
+                else
+                    sendNotification("Error", "Quest completion failed! Retrying...")
                 end
             elseif dialogueType == "TakeQuest" and questAction == "Take" then
+                sendNotification("Debug", "Attempting to take quest...")
+                
                 for _ = 1, 4 do
-                    ensureCharacterIsAlive()
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    ensureCharacterIsAlive() -- Ensure alive
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Take quest dialogue
                     wait(1)
                 end
+
                 if hasQuest() then
                     sendNotification("Quest", "Quest successfully taken.")
                     sendDiscordNotification("Quest Taken", "The quest was taken successfully.")
                     success = true
+                else
+                    sendNotification("Error", "Quest taking failed! Retrying...")
                 end
             else
                 sendNotification("Error", "Unexpected dialogue type or action mismatch!")
