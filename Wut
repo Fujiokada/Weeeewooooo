@@ -190,21 +190,11 @@ local function monitorHealth()
                             wait(0.5) -- Allow time for other processes
                         else
                             if not healthCriticalNotified then
-                                sendNotification("Health Monitor", "Health critical. Teleporting before reset.")
+                                sendNotification("Health Monitor", "Health critical. Resetting character.")
                                 healthCriticalNotified = true -- Prevent repeated notifications
-
-                                -- Teleport to the safe position
-                                local safePosition = Vector3.new(-35, 277, 963)
-                                if character:FindFirstChild("HumanoidRootPart") then
-                                    character.HumanoidRootPart.CFrame = CFrame.new(safePosition)
-                                end
-
-                                wait(1) -- Wait 1 second after teleporting
-
-                                -- Reset the character
-                                humanoid.Health = 0 -- Trigger character reset
-                                ensureCharacterIsAlive() -- Wait for respawn to complete
                             end
+                            humanoid.Health = 0 -- Trigger character reset
+                            ensureCharacterIsAlive() -- Wait for respawn to complete
                         end
                     else
                         healthCriticalNotified = false -- Reset flag when health is above threshold
@@ -215,6 +205,7 @@ local function monitorHealth()
         end
     end)
 end
+
 
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -353,7 +344,6 @@ local function isLowHealth()
     return false
 end
 
--- Unified function to handle quest logic (take/complete quest)
 local function handleQuest()
     ensureCharacterIsAlive() -- Wait until the character is alive
 
@@ -361,56 +351,74 @@ local function handleQuest()
         wait(0.5) -- Wait until the Nadeshiko Field is inactive
     end
 
-    local npc = workspace.NPCs:FindFirstChild("Agor")
-    if not npc then
-        sendNotification("Error", "Quest NPC not found!")
-        return
-    end
+    -- Determine if the quest needs to be completed or taken
+    if hasQuest() then
+        if isQuestCompleted() then
+            sendNotification("Quest", "Quest completed. Turning in.")
+            teleportToPositionIfNadeshikoInactive(questNPCPosition)
+            wait(1)
 
-    local prompt = npc:FindFirstChild("ProximityPrompt")
-    if not prompt then
-        sendNotification("Error", "Proximity prompt for NPC not found!")
-        return
-    end
+            local npc = workspace.NPCs:FindFirstChild("Agor")
+            if npc then
+                local prompt = npc:FindFirstChild("ProximityPrompt")
+                if prompt then
+                    fireproximityprompt(prompt)
+                    for i = 1, 2 do
+                        ensureCharacterIsAlive() -- Ensure alive before interacting further
+                        if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                            wait(1)
+                        else
+                            sendNotification("Error", "DialogueHandler not found!")
+                            return
+                        end
+                    end
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    wait(1)
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
 
-    teleportToPositionIfNadeshikoInactive(questNPCPosition)
-    wait(1)
-
-    fireproximityprompt(prompt)
-
-    wait(2) -- Wait for dialogue to initialize
-    if isQuestCompleted() then
-        sendNotification("Quest", "Completing the quest...")
-        for _ = 1, 2 do
-            ensureCharacterIsAlive()
-            if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                wait(1.5) -- Increased delay for server processing
+                    if isQuestCompleted() then
+                        sendNotification("Quest", "Quest successfully completed.")
+                        sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
+                    end
+                else
+                    sendNotification("Error", "Proximity prompt for NPC not found!")
+                end
             else
-                sendNotification("Error", "DialogueHandler not found!")
-                return
+                sendNotification("Error", "Quest NPC not found in workspace!")
             end
         end
-        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-        wait(2) -- Ensure dialogue sequence completes
-        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-        wait(2) -- Another delay for confirmation
-        sendNotification("Quest", "Quest completed successfully.")
-        sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by the player.")
     else
-        sendNotification("Quest", "Taking or retaking the quest...")
-        for _ = 1, 4 do
-            ensureCharacterIsAlive()
-            if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                wait(1)
+        sendNotification("Quest", "No active quest. Starting quest.")
+        teleportToPositionIfNadeshikoInactive(teleportPosition)
+        wait(1)
+
+        local npc = workspace.NPCs:FindFirstChild("Agor")
+        if npc then
+            local prompt = npc:FindFirstChild("ProximityPrompt")
+            if prompt then
+                fireproximityprompt(prompt)
+                for _ = 1, 4 do
+                    ensureCharacterIsAlive() -- Ensure alive before interacting further
+                    if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    else
+                        sendNotification("Error", "DialogueHandler not found!")
+                        return
+                    end
+                    wait(1)
+                end
+
+                if hasQuest() then
+                    sendNotification("Quest", "Quest successfully taken.")
+                    sendDiscordNotification("Quest Taken", "Venqtrix has started the quest 'Defeat Strong Souls'.")
+                end
             else
-                sendNotification("Error", "DialogueHandler not found!")
-                return
+                sendNotification("Error", "Proximity prompt for NPC not found!")
             end
+        else
+            sendNotification("Error", "Quest NPC not found in workspace!")
         end
-        sendNotification("Quest", "Quest successfully taken/retaken.")
-        sendDiscordNotification("Quest Taken", "The quest 'Defeat Strong Souls' was taken/retaken by the player.")
     end
 end
 
@@ -524,20 +532,16 @@ end
 spawn(function()
     while true do
         if toggle then
-            ensureCharacterIsAlive()
+            ensureCharacterIsAlive() -- Ensure the character is alive at the start of each iteration
 
-            -- Handle quest logic
-            if not hasQuest() or isQuestCompleted() then
-                handleQuest()
-                wait(1)
-                resetNotifiedEnemies()
-            end
+            -- Handle quests
+            handleQuest()
 
             -- Combat logic
             local targetFound = false
             for _, enemy in ipairs(aiCharacters:GetChildren()) do
                 if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                    ensureCharacterIsAlive()
+                    ensureCharacterIsAlive() -- Ensure character is alive before engaging in combat
                     if isBoss(enemy) or isSpecialEnemy(enemy) then
                         if not notifiedEnemies[enemy] then
                             sendNotification("Combat", "Engaging special enemy: " .. enemy.Name)
@@ -554,13 +558,12 @@ spawn(function()
             if not targetFound and hasQuest() and not isQuestCompleted() then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
                     if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        ensureCharacterIsAlive()
+                        ensureCharacterIsAlive() -- Ensure character is alive before attacking quest enemies
                         for _, targetName in ipairs(targetEnemies) do
                             if enemy.Name:find(targetName) then
                                 attackEnemy(enemy)
                                 if isQuestCompleted() then
-                                    handleQuest()
-                                    resetNotifiedEnemies()
+                                    sendNotification("Quest", "Quest progress completed.")
                                     break
                                 end
                             end
