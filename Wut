@@ -592,6 +592,8 @@ spawn(function()
     end
 end)
 
+monitorHealth()
+
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent then
         if input.KeyCode == Enum.KeyCode.T then
@@ -600,5 +602,3 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
         end
     end
 end)
-
-monitorHealth()
