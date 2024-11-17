@@ -344,89 +344,131 @@ local function isLowHealth()
     return false
 end
 
-local function getDialogueState()
-    local player = game:GetService("Players").LocalPlayer
-    local dialogueGui = player.PlayerGui:FindFirstChild("GameUI") and player.PlayerGui.GameUI:FindFirstChild("Dialogue")
-    local currentlySpeaking = dialogueGui and dialogueGui:FindFirstChild("CurrentlySpeaking")
-    local scrollingFrame = dialogueGui and dialogueGui:FindFirstChild("ScrollingFrame")
-    
-    if currentlySpeaking and currentlySpeaking.Value then
-        if scrollingFrame then
-            if scrollingFrame:FindFirstChild("ActiveQuest") then
-                return "CompleteQuest" -- Dialogue for quest completion
-            elseif scrollingFrame:FindFirstChild("AvailableQuests") then
-                return "TakeRetakeQuest" -- Dialogue for taking or retaking quest
-            end
-        end
-    end
-    return nil -- Unable to determine state
-end
+local function interactWithNPC(npcName, dialogueType)
+    ensureCharacterIsAlive() -- Wait until the character is alive
 
-local function interactWithNPC(npc)
+    local npc = workspace.NPCs:FindFirstChild(npcName)
+    if not npc then
+        sendNotification("Error", "NPC '" .. npcName .. "' not found!")
+        return false
+    end
+
     local prompt = npc:FindFirstChild("ProximityPrompt")
-    if prompt then
-        fireproximityprompt(prompt)
-        wait(1)
-        return true
+    if not prompt then
+        sendNotification("Error", "Proximity prompt for NPC '" .. npcName .. "' not found!")
+        return false
     end
-    sendNotification("Error", "Proximity prompt for NPC not found!")
-    return false
+
+    -- Fire the proximity prompt
+    fireproximityprompt(prompt)
+
+    -- Wait until the dialogue is active
+    local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
+    local dialogueGui = playerGui.GameUI:FindFirstChild("Dialogue")
+    if not dialogueGui then
+        sendNotification("Error", "Dialogue UI not found!")
+        return false
+    end
+
+    -- Wait for the dialogue to activate
+    local timeout = tick() + 5 -- Timeout in case of failure
+    while not dialogueGui.CurrentlySpeaking.Value do
+        if tick() > timeout then
+            sendNotification("Error", "Dialogue activation timed out!")
+            return false
+        end
+        wait(0.1)
+    end
+
+    -- Check dialogue type based on available buttons
+    local scrollingFrame = dialogueGui:FindFirstChild("ScrollingFrame")
+    if not scrollingFrame then
+        sendNotification("Error", "Dialogue ScrollingFrame not found!")
+        return false
+    end
+
+    if scrollingFrame:FindFirstChild("ActiveQuest") then
+        if dialogueType == "Complete" then
+            sendNotification("Quest", "Detected 'Complete Quest' dialogue.")
+            return true
+        else
+            sendNotification("Error", "Unexpected dialogue state: 'Complete Quest' while taking/retaking quest!")
+            return false
+        end
+    elseif scrollingFrame:FindFirstChild("AvailableQuests") then
+        if dialogueType == "Take" then
+            sendNotification("Quest", "Detected 'Take/Retake Quest' dialogue.")
+            return true
+        else
+            sendNotification("Error", "Unexpected dialogue state: 'Take/Retake Quest' while completing quest!")
+            return false
+        end
+    else
+        sendNotification("Error", "No valid dialogue buttons detected!")
+        return false
+    end
 end
 
-local function processQuest(action)
+local function completeQuest()
     ensureCharacterIsAlive() -- Wait until the character is alive
 
     while isNadeshikoFieldActive() do
         wait(0.5) -- Wait until the Nadeshiko Field is inactive
     end
 
-    local actionText = action == "CompleteQuest" and "complete the quest" or "take/retake the quest"
-    sendNotification("Quest", "Teleporting to quest NPC to " .. actionText .. "...")
-    
-    local actionSucceeded = false
-    
-    while not actionSucceeded do
-        ensureCharacterIsAlive() -- Verify character is still alive during the process
-        
+    sendNotification("Quest", "Teleporting to quest NPC to complete quest...")
+
+    while not isQuestCompleted() do
+        ensureCharacterIsAlive() -- Verify character is alive
+
         teleportToPositionIfNadeshikoInactive(questNPCPosition)
         wait(1)
-        
-        local npc = workspace.NPCs:FindFirstChild("Agor")
-        if npc and interactWithNPC(npc) then
-            for _ = 1, 4 do
-                ensureCharacterIsAlive() -- Ensure alive before interacting further
-                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                    wait(1)
-                else
-                    sendNotification("Error", "DialogueHandler not found!")
-                    return
-                end
-            end
 
-            local dialogueState = getDialogueState()
-            if dialogueState == action then
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                wait(1)
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                sendNotification("Quest", "Successfully handled " .. actionText .. ".")
-                actionSucceeded = true
+        if interactWithNPC("Agor", "Complete") then
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+            wait(1)
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            wait(1)
+            if isQuestCompleted() then
+                sendNotification("Quest", "Quest completed successfully.")
+                sendDiscordNotification("Quest Completed", "The quest was completed successfully by the player.")
+                return
             else
-                sendNotification("Error", "Dialogue mismatch! Retrying interaction...")
+                sendNotification("Error", "Quest completion validation failed. Retrying...")
             end
-        else
-            sendNotification("Error", "Quest NPC not found in workspace or interaction failed!")
         end
         wait(1) -- Retry every second
     end
 end
 
-local function completeQuest()
-    processQuest("CompleteQuest")
-end
-
 local function takeQuest()
-    processQuest("TakeRetakeQuest")
+    ensureCharacterIsAlive() -- Wait until the character is alive
+
+    while isNadeshikoFieldActive() do
+        wait(0.5) -- Wait until the Nadeshiko Field is inactive
+    end
+
+    sendNotification("Quest", "Attempting to take/retake quest...")
+
+    while not hasQuest() do
+        ensureCharacterIsAlive() -- Verify character is alive
+
+        teleportToPositionIfNadeshikoInactive(teleportPosition)
+        wait(1)
+
+        if interactWithNPC("Agor", "Take") then
+            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+            wait(1)
+            if hasQuest() then
+                sendNotification("Quest", "Quest successfully taken.")
+                sendDiscordNotification("Quest Taken", "The quest was successfully taken by the player.")
+                return
+            else
+                sendNotification("Error", "Quest taking validation failed. Retrying...")
+            end
+        end
+        wait(1) -- Retry every second
+    end
 end
 
 -- Helper function to check if an enemy is a boss
