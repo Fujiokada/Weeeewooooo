@@ -100,9 +100,23 @@ end
 
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
-    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
-    return isCharacterAliveFlag
+
+    -- Wait for character to respawn if deleted
+    if not character then
+        return false
+    end
+
+    -- Check if HumanoidRootPart exists
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then
+        return false
+    end
+
+    -- Check for SoulForm attachment
+    local soulFormAttachment = humanoidRootPart:FindFirstChild("SoulForm")
+    return soulFormAttachment == nil -- If SoulForm exists, character is "dead"; otherwise, "alive"
 end
+
 
 -- Create floating platform under the character
 local function createFloatingPlatform()
@@ -147,7 +161,7 @@ end
 local function ensureCharacterIsAlive()
     while not isCharacterAlive() do
         respawnCharacter()
-        wait(0.1) -- Ensure there's a short delay between checks
+        wait(0.5) -- Ensure there's a short delay between checks
     end
 end
 
