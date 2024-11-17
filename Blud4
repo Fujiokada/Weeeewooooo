@@ -245,26 +245,23 @@ local function isSkillOnCooldown(tool)
     return tool and tool.Name:match("%d+")
 end
 
--- Updated activateSkills function to include health check for Conqueror's Will
 local function activateSkills(currentEnemy)
-    -- Check if the enemy's health is above 30% before using Nadeshiko Field and Conqueror's Will
-    local shouldUseNadeshiko = false
-    local shouldUseConqueror = false
+    if not currentEnemy or not currentEnemy:FindFirstChild("Humanoid") then return end
 
-    if currentEnemy and currentEnemy:FindFirstChild("Humanoid") then
-        local humanoid = currentEnemy.Humanoid
-        local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-        shouldUseNadeshiko = healthPercentage > 30 
-        shouldUseConqueror = healthPercentage > 30  -- Only use Conqueror's Will if health > 30%
-    end
+    local humanoid = currentEnemy.Humanoid
+    local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+
+    -- Check health to decide whether to use specific skills
+    local shouldUseNadeshiko = healthPercentage > 30 -- Only use Nadeshiko Field if health > 30%
+    local shouldUseConqueror = healthPercentage > 30 -- Only use Conqueror's Will if health > 30%
 
     unequipTool()
 
-    -- Activate "Conqueror's Will" if the enemy's health is above 30%
+    -- Activate "Conqueror's Will" if conditions are met
     local conquerorWillTool = player.Backpack:FindFirstChild("Conqueror's Will")
     if shouldUseConqueror and conquerorWillTool then
         equipTool("Conqueror's Will")
-        while not conquerorWillTool.Name:match("%d") do  -- Retry until on cooldown
+        while not conquerorWillTool.Name:match("%d") do  -- Wait until the tool is on cooldown
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
@@ -273,11 +270,11 @@ local function activateSkills(currentEnemy)
         unequipTool()
     end
 
-    -- Activate "Lion's Slash" if available, with cooldown check
+    -- Activate "Lion's Slash" if available
     local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
     if lionSlashTool then
         equipTool("Lion's Slash")
-        while not lionSlashTool.Name:match("%d") do  -- Retry until on cooldown
+        while not lionSlashTool.Name:match("%d") do  -- Wait until the tool is on cooldown
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
             wait(0.1)
             game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
@@ -286,26 +283,27 @@ local function activateSkills(currentEnemy)
         unequipTool()
     end
 
-    -- Activate "Nadeshiko Field" only if the enemy's health is above 30% and it's not already active
+    -- Activate "Nadeshiko Field" only if the health is above 30% and it's not already active
     if shouldUseNadeshiko and not isNadeshikoFieldActive() then
         local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
         if nadeshikoTool then
             equipTool("Nadeshiko Field")
-            local holdDuration = 5  -- Hold LMB for 5 seconds
+            local holdDuration = 5 -- Simulate holding the tool for 5 seconds
             local startTime = tick()
 
-            -- Simulate holding the click, but stop if Nadeshiko Field activates
+            -- Keep trying to activate Nadeshiko Field while holding the tool
             while tick() - startTime < holdDuration do
                 if isNadeshikoFieldActive() then
                     break
                 end
-                simulateHoldClick(0.1)  -- Short click hold to check activation status
+                simulateHoldClick(0.1) -- Short click-hold intervals
             end
 
             unequipTool()
         end
     end
 
+    -- Reequip the default tool
     equipTool(punchToolName)
     lastSkillUse = tick()
 end
