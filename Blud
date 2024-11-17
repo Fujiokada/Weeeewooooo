@@ -437,7 +437,6 @@ local function attackEnemy(enemy)
     end
 
     if isLowHealth() then return end  -- Prevent attack if health is low
-
     -- Check if the enemy is a boss or special enemy
     local isEnemyBoss = isBoss(enemy)
     local isEnemySpecial = isSpecialEnemy(enemy)
