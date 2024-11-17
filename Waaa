@@ -344,14 +344,32 @@ local function isLowHealth()
     return false
 end
 
-local function isDialogueActive()
+local function waitForDialogueToActivate(timeout)
     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
-    return playerGui.GameUI.Dialogue.CurrentlySpeaking.Value
+    local startTime = tick()
+    
+    while not playerGui.GameUI.Dialogue.CurrentlySpeaking.Value do
+        if tick() - startTime > timeout then
+            sendNotification("Error", "Dialogue failed to activate within the timeout!")
+            return false
+        end
+        wait(0.1)
+    end
+    return true
 end
 
-local function getDialogueType()
+local function waitForDialogueButtons(timeout)
     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
     local dialogueFrame = playerGui.GameUI.Dialogue.ScrollingFrame
+    local startTime = tick()
+    
+    while not (dialogueFrame:FindFirstChild("ActiveQuest") or dialogueFrame:FindFirstChild("AvailableQuests")) do
+        if tick() - startTime > timeout then
+            sendNotification("Error", "Quest buttons not found in dialogue frame within timeout!")
+            return nil
+        end
+        wait(0.1)
+    end
 
     if dialogueFrame:FindFirstChild("ActiveQuest") then
         return "CompleteQuest"
@@ -368,7 +386,7 @@ local function interactWithNPC(npcName)
         local prompt = npc:FindFirstChild("ProximityPrompt")
         if prompt then
             fireproximityprompt(prompt)
-            wait(0.5) -- Allow some time for the dialogue to activate
+            wait(0.5) -- Small delay for UI to load
             return true
         else
             sendNotification("Error", "Proximity prompt for NPC not found!")
@@ -380,52 +398,52 @@ local function interactWithNPC(npcName)
 end
 
 local function handleQuest(npcName, questAction)
-    ensureCharacterIsAlive() -- Wait until the character is alive
+    ensureCharacterIsAlive()
 
     while isNadeshikoFieldActive() do
-        wait(0.5) -- Wait until the Nadeshiko Field is inactive
+        wait(0.5)
     end
 
     local success = false
     sendNotification("Quest", "Interacting with NPC for quest...")
 
     while not success do
-        ensureCharacterIsAlive() -- Verify character is still alive during the process
-
+        ensureCharacterIsAlive()
         teleportToPositionIfNadeshikoInactive(questNPCPosition)
         wait(1)
 
         if interactWithNPC(npcName) then
-            if isDialogueActive() then
-                local dialogueType = getDialogueType()
-                if dialogueType == "CompleteQuest" and questAction == "Complete" then
+            if not waitForDialogueToActivate(5) then
+                sendNotification("Error", "Dialogue activation failed.")
+                return
+            end
+
+            local dialogueType = waitForDialogueButtons(5)
+            if dialogueType == "CompleteQuest" and questAction == "Complete" then
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                wait(1)
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                if isQuestCompleted() then
+                    sendNotification("Quest", "Quest completed successfully.")
+                    sendDiscordNotification("Quest Completed", "The quest was completed successfully.")
+                    success = true
+                end
+            elseif dialogueType == "TakeQuest" and questAction == "Take" then
+                for _ = 1, 4 do
+                    ensureCharacterIsAlive()
                     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
                     wait(1)
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                    if isQuestCompleted() then
-                        sendNotification("Quest", "Quest completed successfully.")
-                        sendDiscordNotification("Quest Completed", "The quest was completed successfully.")
-                        success = true
-                    end
-                elseif dialogueType == "TakeQuest" and questAction == "Take" then
-                    for _ = 1, 4 do
-                        ensureCharacterIsAlive()
-                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-                        wait(1)
-                    end
-                    if hasQuest() then
-                        sendNotification("Quest", "Quest successfully taken.")
-                        sendDiscordNotification("Quest Taken", "The quest was taken successfully.")
-                        success = true
-                    end
-                else
-                    sendNotification("Error", "Unexpected dialogue type or action mismatch!")
+                end
+                if hasQuest() then
+                    sendNotification("Quest", "Quest successfully taken.")
+                    sendDiscordNotification("Quest Taken", "The quest was taken successfully.")
+                    success = true
                 end
             else
-                sendNotification("Error", "Dialogue not activated after interacting with NPC!")
+                sendNotification("Error", "Unexpected dialogue type or action mismatch!")
             end
         end
-        wait(1) -- Retry every second
+        wait(1)
     end
 end
 
