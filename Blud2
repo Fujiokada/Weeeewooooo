@@ -145,8 +145,8 @@ end
 -- Ensure the character is alive or respawn if not
 local function ensureCharacterIsAlive()
     if not isCharacterAlive() then
-      respawnCharacter()
-   end
+        respawnCharacter()
+    end
 end
 
 -- Monitor health and respawn if necessary
