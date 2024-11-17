@@ -93,27 +93,30 @@ local function sendBossKillNotification(enemyName, enemyType)
     end)
 end
 
-local function isCharacterAlive()
-    local character = workspace:FindFirstChild("Venqtrix")
-    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
-    return isCharacterAliveFlag
-end
-
--- Function to ensure character is alive
+-- Ensure the character is alive or respawn if not
 local function ensureCharacterIsAlive()
-    while not isCharacterAlive() do
-        if not deathNotificationSent then
-            sendNotification("Character Status", "Character is dead. Respawning...")
-            deathNotificationSent = true
-        end
-        HealthFlag = false
+    if not isCharacterAlive() then
         respawnCharacter()
-        wait(0.1)
     end
-    HealthFlag = true
-    deathNotificationSent = false -- Reset notification flag
 end
 
+-- Respawn character with floating platform creation
+local function respawnCharacter()
+    if not deathNotificationSent then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        deathNotificationSent = true
+        wait(2)
+        spawnRemote:FireServer(1) -- Server call to respawn
+        wait(2)
+        deathNotificationSent = false
+        if isCharacterAlive() then
+            createFloatingPlatform()
+            sendNotification("Character Status", "Character respawned successfully.")
+        end
+    end
+end
+
+-- Create floating platform under the character
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -123,66 +126,39 @@ local function createFloatingPlatform()
         Float.Transparency = 1
         Float.Size = Vector3.new(2, 0.2, 1.5)
         Float.Anchored = true
-        local FloatValue = -3.1
 
-        local function FloatPadLoop()
-            if character:FindFirstChild(floatName) and character:FindFirstChild("HumanoidRootPart") then
-                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, FloatValue, 0)
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if Float.Parent and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, -3.1, 0)
             else
                 Float:Destroy()
             end
-            wait(0.2)
-        end
+        end)
 
-        game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
         sendNotification("Platform", "Floating platform created under character.")
     end
 end
 
+-- Monitor health and respawn if necessary
 local function monitorHealth()
     spawn(function()
         while true do
-            if toggle and isCharacterAlive() and HealthFlag then
+            if toggle and HealthFlag and isCharacterAlive() then
                 local character = player.Character
                 if character and character:FindFirstChild("Humanoid") then
                     local humanoid = character.Humanoid
                     local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
-                    
+
                     if healthPercentage <= 40 then
-                        -- Simulate death
                         humanoid.Health = 0
-                        sendNotification("Health Monitor", "Health dropped below 30%, resetting character.")
-                        HealthFlag = false -- Disable all functions temporarily
-                        
-                        -- Respawn the character
-                        respawnCharacter()
-                        
-                        -- Allow time for the respawn process
-                        wait(2)
-                        HealthFlag = true -- Re-enable functions after respawn
-                        if isCharacterAlive() then
-                            sendNotification("Health Monitor", "Character reset complete. Resuming operations.")
-                        end
+                        sendNotification("Health Monitor", "Health critical. Resetting character.")
+                        ensureCharacterIsAlive()
                     end
                 end
             end
-            wait(0.5) -- Monitor health every 0.5 seconds
+            wait(0.5)
         end
     end)
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() and not deathNotificationSent then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        deathNotificationSent = true  -- Mark the notification as sent
-        wait(3)
-        spawnRemote:FireServer(1)
-        wait(3)
-        if isCharacterAlive() then
-            deathNotificationSent = false
-            createFloatingPlatform()
-        end
-    end
 end
 
 local function simulateHoldClick(duration)
@@ -520,40 +496,36 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
--- Main loop
+-- Main loop: Combat and quest handling
 spawn(function()
     while true do
         if toggle then
-            ensureCharacterIsAlive() -- Always ensure the character is alive before proceeding
+            ensureCharacterIsAlive() -- Ensure the character is alive at the start of each iteration
 
-            -- If no active quest, start or retake the quest
+            -- Quest logic
             if not hasQuest() and not isNadeshikoFieldActive() then
-                ensureCharacterIsAlive()
-                sendNotification("Quest", "No active quest, attempting to start quest.")
+                ensureCharacterIsAlive() -- Ensure character is alive before starting a quest
+                sendNotification("Quest", "No active quest. Starting quest.")
                 takeQuest()
                 wait(1)
                 resetNotifiedEnemies()
-            end
-
-            -- If quest is completed, turn it in and retake it
-            if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
-                ensureCharacterIsAlive()
-                sendNotification("Quest", "Quest completed, turning in.")
+            elseif hasQuest() and isQuestCompleted() then
+                ensureCharacterIsAlive() -- Ensure character is alive before completing a quest
+                sendNotification("Quest", "Quest completed. Turning in.")
                 completeQuest()
                 wait(1)
                 takeQuest()
-                wait(1)
                 resetNotifiedEnemies()
             end
 
-            -- Combat: Prioritize attacking special enemies or bosses
+            -- Combat logic
             local targetFound = false
             for _, enemy in ipairs(aiCharacters:GetChildren()) do
                 if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                    ensureCharacterIsAlive()
+                    ensureCharacterIsAlive() -- Ensure character is alive before engaging in combat
                     if isBoss(enemy) or isSpecialEnemy(enemy) then
                         if not notifiedEnemies[enemy] then
-                            sendNotification("Combat", "Prioritizing special enemy or boss: " .. enemy.Name)
+                            sendNotification("Combat", "Engaging special enemy: " .. enemy.Name)
                             notifiedEnemies[enemy] = true
                         end
                         targetFound = true
@@ -563,16 +535,14 @@ spawn(function()
                 end
             end
 
-            -- Attack quest enemies if no special enemies or bosses are found
-            if not targetFound and hasQuest() and not isQuestCompleted() and not isNadeshikoFieldActive() then
+            -- Fallback to quest-specific enemies
+            if not targetFound and hasQuest() and not isQuestCompleted() then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
                     if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        ensureCharacterIsAlive()
+                        ensureCharacterIsAlive() -- Ensure character is alive before attacking quest enemies
                         for _, targetName in ipairs(targetEnemies) do
                             if enemy.Name:find(targetName) then
                                 attackEnemy(enemy)
-
-                                -- Check quest completion status after each enemy
                                 if isQuestCompleted() then
                                     completeQuest()
                                     takeQuest()
