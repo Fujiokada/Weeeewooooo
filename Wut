@@ -299,9 +299,9 @@ local function activateSkills(currentEnemy)
             local character = player.Character
             if character and character:FindFirstChild("HumanoidRootPart") then
                 local humanoidRootPart = character.HumanoidRootPart
-                humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, 20, 0) -- Move 20 studs up
+                humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, 50, 0) -- Move 20 studs up
             end
-
+            wait(0.5)
             -- Equip and activate the tool
             equipTool("Nadeshiko Field")
             local holdDuration = 5 -- Simulate holding the tool for 5 seconds
