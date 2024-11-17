@@ -427,19 +427,37 @@ local function handleQuest(npcName, questAction)
 
             local dialogueType = waitForDialogueButtons(5)
             if dialogueType == "CompleteQuest" and questAction == "Complete" then
-                -- Fire remotes to complete the quest
                 sendNotification("Debug", "Attempting to complete quest...")
-                
-                -- Adjusted remote fire sequence
-                for i = 1, 3 do
-                    ensureCharacterIsAlive() -- Ensure the player is alive during the interaction
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2) -- Open quest dialogue
-                    wait(0.5)
+
+                -- Old remote sequence restored for quest completion
+                local npc = workspace.NPCs:FindFirstChild(npcName)
+                if npc then
+                    local prompt = npc:FindFirstChild("ProximityPrompt")
+                    if prompt then
+                        fireproximityprompt(prompt)
+                        for i = 1, 2 do
+                            ensureCharacterIsAlive() -- Ensure alive before interacting further
+                            if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2) -- Progress dialogue
+                                wait(1)
+                            else
+                                sendNotification("Error", "DialogueHandler not found!")
+                                return
+                            end
+                        end
+                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Confirm completion
+                        wait(1)
+                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Final confirmation
+                    else
+                        sendNotification("Error", "Proximity prompt for NPC not found!")
+                        return
+                    end
+                else
+                    sendNotification("Error", "Quest NPC not found in workspace!")
+                    return
                 end
 
-                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Confirm quest completion
-                wait(1)
-
+                -- Validate quest completion
                 if isQuestCompleted() then
                     sendNotification("Quest", "Quest completed successfully.")
                     sendDiscordNotification("Quest Completed", "The quest was completed successfully.")
@@ -449,9 +467,9 @@ local function handleQuest(npcName, questAction)
                 end
             elseif dialogueType == "TakeQuest" and questAction == "Take" then
                 sendNotification("Debug", "Attempting to take quest...")
-                
+
                 for _ = 1, 4 do
-                    ensureCharacterIsAlive() -- Ensure alive
+                    ensureCharacterIsAlive()
                     replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Take quest dialogue
                     wait(1)
                 end
