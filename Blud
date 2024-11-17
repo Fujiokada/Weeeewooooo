@@ -93,6 +93,20 @@ local function sendBossKillNotification(enemyName, enemyType)
     end)
 end
 
+local function respawnCharacter()
+    if not isCharacterAlive() and not deathNotificationSent then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        deathNotificationSent = true  -- Mark the notification as sent
+        wait(3)
+        spawnRemote:FireServer(1)
+        wait(3)
+        if isCharacterAlive() then
+            deathNotificationSent = false
+            createFloatingPlatform()
+        end
+    end
+end
+
 local function isCharacterAlive()
     local character = workspace:FindFirstChild("Venqtrix")
     isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
@@ -136,20 +150,6 @@ local function createFloatingPlatform()
 
         game:GetService("RunService").Heartbeat:Connect(FloatPadLoop)
         sendNotification("Platform", "Floating platform created under character.")
-    end
-end
-
-local function respawnCharacter()
-    if not isCharacterAlive() and not deathNotificationSent then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        deathNotificationSent = true  -- Mark the notification as sent
-        wait(3)
-        spawnRemote:FireServer(1)
-        wait(3)
-        if isCharacterAlive() then
-            deathNotificationSent = false
-            createFloatingPlatform()
-        end
     end
 end
 
