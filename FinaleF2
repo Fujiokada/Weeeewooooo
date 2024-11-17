@@ -146,7 +146,7 @@ local function monitorHealth()
                     local humanoid = character.Humanoid
                     local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
                     
-                    if healthPercentage <= 30 then
+                    if healthPercentage <= 40 then
                         -- Simulate death
                         humanoid.Health = 0
                         sendNotification("Health Monitor", "Health dropped below 30%, resetting character.")
@@ -294,7 +294,7 @@ end
 local function isLowHealth()
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         local humanoid = player.Character.Humanoid
-        return humanoid.Health <= humanoid.MaxHealth * 0.2
+        return humanoid.Health <= humanoid.MaxHealth * 0.4
     end
     return false
 end
