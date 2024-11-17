@@ -171,6 +171,10 @@ local function ensureCharacterIsAlive()
     end
 end
 
+-- Track respawn state to avoid conflicts
+local isRespawning = false
+
+-- Monitor health and respawn if necessary
 local function monitorHealth()
     spawn(function()
         while true do
@@ -183,13 +187,17 @@ local function monitorHealth()
                     if healthPercentage <= 40 then
                         -- Prevent resetting if already dead or respawning
                         if not isCharacterAlive() or isRespawning then
-                            wait(0.5) -- Wait for other processes to complete
+                            wait(0.5) -- Allow time for other processes
                         else
-                            -- Trigger reset
-                            sendNotification("Health Monitor", "Health critical. Resetting character.")
-                            humanoid.Health = 0
-                            ensureCharacterIsAlive() -- Wait until respawn is complete
+                            if not healthCriticalNotified then
+                                sendNotification("Health Monitor", "Health critical. Resetting character.")
+                                healthCriticalNotified = true -- Prevent repeated notifications
+                            end
+                            humanoid.Health = 0 -- Trigger character reset
+                            ensureCharacterIsAlive() -- Wait for respawn to complete
                         end
+                    else
+                        healthCriticalNotified = false -- Reset flag when health is above threshold
                     end
                 end
             end
@@ -197,6 +205,7 @@ local function monitorHealth()
         end
     end)
 end
+
 
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
