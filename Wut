@@ -379,22 +379,22 @@ local function handleQuest()
     fireproximityprompt(prompt)
 
     wait(2) -- Wait for dialogue to initialize
-
     if isQuestCompleted() then
         sendNotification("Quest", "Completing the quest...")
         for _ = 1, 2 do
             ensureCharacterIsAlive()
             if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                 replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
-                wait(1)
+                wait(1.5) -- Increased delay for server processing
             else
                 sendNotification("Error", "DialogueHandler not found!")
                 return
             end
         end
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
-        wait(1)
+        wait(2) -- Ensure dialogue sequence completes
         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+        wait(2) -- Another delay for confirmation
         sendNotification("Quest", "Quest completed successfully.")
         sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by the player.")
     else
