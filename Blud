@@ -102,22 +102,6 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
--- Respawn character with floating platform creation
-local function respawnCharacter()
-    if not deathNotificationSent then
-        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
-        deathNotificationSent = true
-        wait(2)
-        spawnRemote:FireServer(1) -- Server call to respawn
-        wait(2)
-        deathNotificationSent = false
-        if isCharacterAlive() then
-            createFloatingPlatform()
-            sendNotification("Character Status", "Character respawned successfully.")
-        end
-    end
-end
-
 -- Create floating platform under the character
 local function createFloatingPlatform()
     local character = player.Character
@@ -138,6 +122,22 @@ local function createFloatingPlatform()
         end)
 
         sendNotification("Platform", "Floating platform created under character.")
+    end
+end
+
+-- Respawn character with floating platform creation
+local function respawnCharacter()
+    if not deathNotificationSent then
+        sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+        deathNotificationSent = true
+        wait(2)
+        spawnRemote:FireServer(1) -- Server call to respawn
+        wait(2)
+        deathNotificationSent = false
+        if isCharacterAlive() then
+            createFloatingPlatform()
+            sendNotification("Character Status", "Character respawned successfully.")
+        end
     end
 end
 
