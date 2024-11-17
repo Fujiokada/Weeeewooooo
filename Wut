@@ -378,7 +378,7 @@ local function handleQuest()
 
     fireproximityprompt(prompt)
 
-    wait(0.5) -- Wait for dialogue to initialize
+    wait(2) -- Wait for dialogue to initialize
 
     if isQuestCompleted() then
         sendNotification("Quest", "Completing the quest...")
