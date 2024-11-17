@@ -327,11 +327,8 @@ local function isLowHealth()
 end
 
 local function completeQuest()
-        if not isCharacterAlive() then 
-        respawnCharacter() 
-        return -- Exit the function to allow respawnCharacter to handle the flow
-    end
-    
+    ensureCharacterIsAlive() -- Wait until the character is alive
+
     while isNadeshikoFieldActive() do
         wait(0.5) -- Wait until the Nadeshiko Field is inactive
     end
@@ -341,6 +338,8 @@ local function completeQuest()
     local questCompleted = false
     
     while not questCompleted do
+        ensureCharacterIsAlive() -- Verify character is still alive during the process
+        
         teleportToPositionIfNadeshikoInactive(questNPCPosition)
         wait(1)
         
@@ -350,6 +349,7 @@ local function completeQuest()
             if prompt then
                 fireproximityprompt(prompt)
                 for i = 1, 2 do
+                    ensureCharacterIsAlive() -- Ensure alive before interacting further
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
                         wait(1)
@@ -378,11 +378,8 @@ local function completeQuest()
 end
 
 local function takeQuest()
-    if not isCharacterAlive() then 
-        respawnCharacter() 
-        return -- Exit the function to allow respawnCharacter to handle the flow
-    end
-    
+    ensureCharacterIsAlive() -- Wait until the character is alive
+
     while isNadeshikoFieldActive() do
         wait(0.5) -- Wait until the Nadeshiko Field is inactive
     end
@@ -392,6 +389,8 @@ local function takeQuest()
     local questTaken = false
     
     while not questTaken do
+        ensureCharacterIsAlive() -- Verify character is still alive during the process
+
         teleportToPositionIfNadeshikoInactive(teleportPosition)
         wait(1)
         
@@ -401,6 +400,7 @@ local function takeQuest()
             if prompt then
                 fireproximityprompt(prompt)
                 for _ = 1, 4 do
+                    ensureCharacterIsAlive() -- Ensure alive before interacting further
                     if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
                         replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
                     else
