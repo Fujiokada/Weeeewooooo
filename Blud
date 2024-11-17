@@ -99,6 +99,21 @@ local function isCharacterAlive()
     return isCharacterAliveFlag
 end
 
+-- Function to ensure character is alive
+local function ensureCharacterIsAlive()
+    while not isCharacterAlive() do
+        if not deathNotificationSent then
+            sendNotification("Character Status", "Character is dead. Respawning...")
+            deathNotificationSent = true
+        end
+        HealthFlag = false
+        respawnCharacter()
+        wait(0.1)
+    end
+    HealthFlag = true
+    deathNotificationSent = false -- Reset notification flag
+end
+
 local function createFloatingPlatform()
     local character = player.Character
     if character and not character:FindFirstChild(floatName) then
@@ -505,105 +520,64 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
--- Modified main loop with prioritized character state check
+-- Main loop
 spawn(function()
     while true do
         if toggle then
-            -- Always check if the character is alive first
-            if not isCharacterAlive() then
-                if not deathNotificationSent then
-                    sendNotification("Character Status", "Character is dead. Respawning...")
-                    deathNotificationSent = true
-                end
-                HealthFlag = false
-                respawnCharacter()
-                resetNotifiedEnemies() -- Reset notifications when respawning
-                wait(0.1) -- Short delay to allow respawn process
-                continue -- Skip the rest of the loop if character is dead
-            else
-                HealthFlag = true
-                deathNotificationSent = false -- Reset notification flag
+            ensureCharacterIsAlive() -- Always ensure the character is alive before proceeding
+
+            -- If no active quest, start or retake the quest
+            if not hasQuest() and not isNadeshikoFieldActive() then
+                ensureCharacterIsAlive()
+                sendNotification("Quest", "No active quest, attempting to start quest.")
+                takeQuest()
+                wait(1)
+                resetNotifiedEnemies()
             end
 
-            -- Handle quests and combat only if character is alive
-            if isCharacterAlive() then
-                -- If no active quest, start or retake the quest
-                if not hasQuest() and not isNadeshikoFieldActive() then
-                    while not isCharacterAlive() do
-                        HealthFlag = false
-                        respawnCharacter()
-                        wait(0.1)
-                    end
-                    HealthFlag = true
-                    sendNotification("Quest", "No active quest, attempting to start quest.")
-                    takeQuest()
-                    wait(1)
-                    resetNotifiedEnemies()
-                end
+            -- If quest is completed, turn it in and retake it
+            if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
+                ensureCharacterIsAlive()
+                sendNotification("Quest", "Quest completed, turning in.")
+                completeQuest()
+                wait(1)
+                takeQuest()
+                wait(1)
+                resetNotifiedEnemies()
+            end
 
-                -- If quest is completed, turn it in and retake it
-                if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
-                    while not isCharacterAlive() do
-                        HealthFlag = false
-                        respawnCharacter()
-                        wait(0.1)
-                    end
-                    HealthFlag = true
-                    sendNotification("Quest", "Quest completed, turning in.")
-                    completeQuest()
-                    wait(1)
-                    takeQuest() -- Retake quest immediately after completion
-                    wait(1)
-                    resetNotifiedEnemies() -- Reset notifications after quest completion
-                end
-
-                -- Combat: Prioritize attacking special enemies or bosses
-                local targetFound = false
-                if isCharacterAlive() then -- Check again before attacking
-                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            while not isCharacterAlive() do
-                                HealthFlag = false
-                                respawnCharacter()
-                                wait(0.1)
-                            end
-                            HealthFlag = true
-                            if isBoss(enemy) or isSpecialEnemy(enemy) then
-                                if not notifiedEnemies[enemy] then
-                                    sendNotification("Combat", "Prioritizing special enemy or boss: " .. enemy.Name)
-                                    notifiedEnemies[enemy] = true -- Mark as notified
-                                end
-                                targetFound = true
-                                attackEnemy(enemy)
-                                break
-                            end
+            -- Combat: Prioritize attacking special enemies or bosses
+            local targetFound = false
+            for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                    ensureCharacterIsAlive()
+                    if isBoss(enemy) or isSpecialEnemy(enemy) then
+                        if not notifiedEnemies[enemy] then
+                            sendNotification("Combat", "Prioritizing special enemy or boss: " .. enemy.Name)
+                            notifiedEnemies[enemy] = true
                         end
+                        targetFound = true
+                        attackEnemy(enemy)
+                        break
                     end
                 end
+            end
 
-                -- Attack quest enemies if no special enemies or bosses are found
-                if not targetFound and hasQuest() and not isQuestCompleted() and not isNadeshikoFieldActive() then
-                    if isCharacterAlive() then -- Ensure alive before attacking quest enemies
-                        for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                            if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                                while not isCharacterAlive() do
-                                    HealthFlag = false
-                                    respawnCharacter()
-                                    wait(0.1)
-                                end
-                                HealthFlag = true
-                                for _, targetName in ipairs(targetEnemies) do
-                                    if enemy.Name:find(targetName) then
-                                        attackEnemy(enemy)
+            -- Attack quest enemies if no special enemies or bosses are found
+            if not targetFound and hasQuest() and not isQuestCompleted() and not isNadeshikoFieldActive() then
+                for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        ensureCharacterIsAlive()
+                        for _, targetName in ipairs(targetEnemies) do
+                            if enemy.Name:find(targetName) then
+                                attackEnemy(enemy)
 
-                                        -- Check quest completion status after each enemy
-                                        if isQuestCompleted() then
-                                            completeQuest()
-                                            takeQuest()
-                                            resetNotifiedEnemies() -- Reset notifications after quest completion
-                                            break
-                                        end
-                                    end
+                                -- Check quest completion status after each enemy
+                                if isQuestCompleted() then
+                                    completeQuest()
+                                    takeQuest()
+                                    resetNotifiedEnemies()
+                                    break
                                 end
                             end
                         end
@@ -615,5 +589,13 @@ spawn(function()
     end
 end)
 
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.T then
+            toggle = not toggle
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+        end
+    end
+end)
 
 monitorHealth()
