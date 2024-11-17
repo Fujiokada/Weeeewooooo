@@ -93,6 +93,12 @@ local function sendBossKillNotification(enemyName, enemyType)
     end)
 end
 
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild("Venqtrix")
+    isCharacterAliveFlag = character and character:FindFirstChild("Customizations") ~= nil
+    return isCharacterAliveFlag
+end
+
 -- Ensure the character is alive or respawn if not
 local function ensureCharacterIsAlive()
     if not isCharacterAlive() then
