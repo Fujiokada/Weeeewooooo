@@ -186,6 +186,20 @@ local function monitorHealth()
                         if not isCharacterAlive() or isRespawning then
                             wait(0.5) -- Allow time for other processes
                         else
+                            -- Wait for `NadeshikoField` to disappear
+                            local function isFieldActive()
+                                for _, part in ipairs(workspace.AtmosphereZones:GetChildren()) do
+                                    if part:IsA("BasePart") and part.Name:find("NadeshikoField") then
+                                        return true
+                                    end
+                                end
+                                return false
+                            end
+
+                            while isFieldActive() do
+                                wait(0.5) -- Check every 0.5 seconds if NadeshikoField is still active
+                            end
+
                             if not healthCriticalNotified then
                                 sendNotification("Health Monitor", "Health critical. Teleporting before reset.")
                                 healthCriticalNotified = true -- Prevent repeated notifications
