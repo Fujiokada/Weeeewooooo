@@ -530,9 +530,11 @@ spawn(function()
                 -- If no active quest, start or retake the quest
                 if not hasQuest() and not isNadeshikoFieldActive() then
                     while not isCharacterAlive() do
+                        HealthFlag = false
                         respawnCharacter()
                         wait(0.1)
                     end
+                    HealthFlag = true
                     sendNotification("Quest", "No active quest, attempting to start quest.")
                     takeQuest()
                     wait(1)
@@ -542,9 +544,11 @@ spawn(function()
                 -- If quest is completed, turn it in and retake it
                 if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
                     while not isCharacterAlive() do
+                        HealthFlag = false
                         respawnCharacter()
                         wait(0.1)
                     end
+                    HealthFlag = true
                     sendNotification("Quest", "Quest completed, turning in.")
                     completeQuest()
                     wait(1)
@@ -559,9 +563,11 @@ spawn(function()
                     for _, enemy in ipairs(aiCharacters:GetChildren()) do
                         if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                             while not isCharacterAlive() do
+                                HealthFlag = false
                                 respawnCharacter()
                                 wait(0.1)
                             end
+                            HealthFlag = true
                             if isBoss(enemy) or isSpecialEnemy(enemy) then
                                 if not notifiedEnemies[enemy] then
                                     sendNotification("Combat", "Prioritizing special enemy or boss: " .. enemy.Name)
@@ -581,9 +587,11 @@ spawn(function()
                         for _, enemy in ipairs(aiCharacters:GetChildren()) do
                             if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                                 while not isCharacterAlive() do
+                                    HealthFlag = false
                                     respawnCharacter()
                                     wait(0.1)
                                 end
+                                HealthFlag = true
                                 for _, targetName in ipairs(targetEnemies) do
                                     if enemy.Name:find(targetName) then
                                         attackEnemy(enemy)
@@ -607,13 +615,5 @@ spawn(function()
     end
 end)
 
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
-    if not gameProcessedEvent then
-        if input.KeyCode == Enum.KeyCode.T then
-            toggle = not toggle
-            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
-        end
-    end
-end)
 
 monitorHealth()
