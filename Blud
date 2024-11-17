@@ -513,6 +513,7 @@ spawn(function()
             if not isCharacterAlive() then
                 if not deathNotificationSent then
                     sendNotification("Character Status", "Character is dead. Respawning...")
+                    deathNotificationSent = true
                 end
                 HealthFlag = false
                 respawnCharacter()
@@ -524,10 +525,14 @@ spawn(function()
                 deathNotificationSent = false -- Reset notification flag
             end
 
-            -- Handle quests only if character is alive
-            if HealthFlag then
+            -- Handle quests and combat only if character is alive
+            if isCharacterAlive() then
                 -- If no active quest, start or retake the quest
                 if not hasQuest() and not isNadeshikoFieldActive() then
+                    while not isCharacterAlive() do
+                        respawnCharacter()
+                        wait(0.1)
+                    end
                     sendNotification("Quest", "No active quest, attempting to start quest.")
                     takeQuest()
                     wait(1)
@@ -536,6 +541,10 @@ spawn(function()
 
                 -- If quest is completed, turn it in and retake it
                 if hasQuest() and isQuestCompleted() and not isNadeshikoFieldActive() then
+                    while not isCharacterAlive() do
+                        respawnCharacter()
+                        wait(0.1)
+                    end
                     sendNotification("Quest", "Quest completed, turning in.")
                     completeQuest()
                     wait(1)
@@ -544,36 +553,48 @@ spawn(function()
                     resetNotifiedEnemies() -- Reset notifications after quest completion
                 end
 
-                -- Prioritize attacking special enemies or bosses
+                -- Combat: Prioritize attacking special enemies or bosses
                 local targetFound = false
-                for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        if isBoss(enemy) or isSpecialEnemy(enemy) then
-                            if not notifiedEnemies[enemy] then
-                                sendNotification("Combat", "Prioritizing special enemy or boss: " .. enemy.Name)
-                                notifiedEnemies[enemy] = true -- Mark as notified
+                if isCharacterAlive() then -- Check again before attacking
+                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                            while not isCharacterAlive() do
+                                respawnCharacter()
+                                wait(0.1)
                             end
-                            targetFound = true
-                            attackEnemy(enemy)
-                            break
+                            if isBoss(enemy) or isSpecialEnemy(enemy) then
+                                if not notifiedEnemies[enemy] then
+                                    sendNotification("Combat", "Prioritizing special enemy or boss: " .. enemy.Name)
+                                    notifiedEnemies[enemy] = true -- Mark as notified
+                                end
+                                targetFound = true
+                                attackEnemy(enemy)
+                                break
+                            end
                         end
                     end
                 end
 
-                -- If no special enemies or bosses are found, attack quest enemies
+                -- Attack quest enemies if no special enemies or bosses are found
                 if not targetFound and hasQuest() and not isQuestCompleted() and not isNadeshikoFieldActive() then
-                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            for _, targetName in ipairs(targetEnemies) do
-                                if enemy.Name:find(targetName) then
-                                    attackEnemy(enemy)
+                    if isCharacterAlive() then -- Ensure alive before attacking quest enemies
+                        for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                            if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                                while not isCharacterAlive() do
+                                    respawnCharacter()
+                                    wait(0.1)
+                                end
+                                for _, targetName in ipairs(targetEnemies) do
+                                    if enemy.Name:find(targetName) then
+                                        attackEnemy(enemy)
 
-                                    -- Check quest completion status after each enemy
-                                    if isQuestCompleted() then
-                                        completeQuest()
-                                        takeQuest()
-                                        resetNotifiedEnemies() -- Reset notifications after quest completion
-                                        break
+                                        -- Check quest completion status after each enemy
+                                        if isQuestCompleted() then
+                                            completeQuest()
+                                            takeQuest()
+                                            resetNotifiedEnemies() -- Reset notifications after quest completion
+                                            break
+                                        end
                                     end
                                 end
                             end
