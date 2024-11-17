@@ -26,7 +26,6 @@ local notifiedEnemies = {}
 local respawnCharacter 
 local isCharacterAlive
 local isRespawning = false 
-local questInProgress = false
 local ensureCharacterIsAlive
 local webhookURL = "https://discord.com/api/webhooks/1306244225725370471/wFVYW4SdmUMhvPOxqTY0VncLWLEtArsrGs3lnzSu38aKpHdlP84FD6IbcWCgqJ5Z1wyS"
 local webhookURL2 = "https://discord.com/api/webhooks/1307349029838913576/gOk1wJEerT9PAfMdh9M0Og12QuPuIqx9Jm3gofYGNPt82D6LjKKgzc4MbHHBonLkO7iA"
@@ -345,158 +344,89 @@ local function isLowHealth()
     return false
 end
 
-local function waitForDialogueToActivate(timeout)
-    local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
-    local startTime = tick()
-
-    -- Wait for the dialogue system to activate
-    while not playerGui.GameUI.Dialogue.CurrentlySpeaking.Value do
-        if tick() - startTime > timeout then
-            sendNotification("Error", "Dialogue failed to activate within the timeout!")
-            return false
+local function getDialogueState()
+    local player = game:GetService("Players").LocalPlayer
+    local dialogueGui = player.PlayerGui:FindFirstChild("GameUI") and player.PlayerGui.GameUI:FindFirstChild("Dialogue")
+    local currentlySpeaking = dialogueGui and dialogueGui:FindFirstChild("CurrentlySpeaking")
+    local scrollingFrame = dialogueGui and dialogueGui:FindFirstChild("ScrollingFrame")
+    
+    if currentlySpeaking and currentlySpeaking.Value then
+        if scrollingFrame then
+            if scrollingFrame:FindFirstChild("ActiveQuest") then
+                return "CompleteQuest" -- Dialogue for quest completion
+            elseif scrollingFrame:FindFirstChild("AvailableQuests") then
+                return "TakeRetakeQuest" -- Dialogue for taking or retaking quest
+            end
         end
-        wait(0.1)
     end
-    sendNotification("Debug", "Dialogue activated successfully.")
-    return true
+    return nil -- Unable to determine state
 end
 
-local function waitForDialogueButtons(timeout)
-    local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
-    local dialogueFrame = playerGui.GameUI.Dialogue.ScrollingFrame
-    local startTime = tick()
-
-    -- Wait for the buttons to appear in the dialogue frame
-    while not (dialogueFrame:FindFirstChild("ActiveQuest") or dialogueFrame:FindFirstChild("AvailableQuests")) do
-        if tick() - startTime > timeout then
-            sendNotification("Error", "Quest buttons not found in dialogue frame within timeout!")
-            return nil
-        end
-        wait(0.1)
+local function interactWithNPC(npc)
+    local prompt = npc:FindFirstChild("ProximityPrompt")
+    if prompt then
+        fireproximityprompt(prompt)
+        wait(1)
+        return true
     end
-
-    -- Check which button exists and return the dialogue type
-    if dialogueFrame:FindFirstChild("ActiveQuest") then
-        sendNotification("Debug", "Detected 'Complete Quest' dialogue.")
-        return "CompleteQuest"
-    elseif dialogueFrame:FindFirstChild("AvailableQuests") then
-        sendNotification("Debug", "Detected 'Take Quest' dialogue.")
-        return "TakeQuest"
-    else
-        return nil
-    end
-end
-
-local function interactWithNPC(npcName)
-    local npc = workspace.NPCs:FindFirstChild(npcName)
-    if npc then
-        local prompt = npc:FindFirstChild("ProximityPrompt")
-        if prompt then
-            sendNotification("Debug", "Interacting with NPC: " .. npcName)
-            fireproximityprompt(prompt)
-            wait(0.5) -- Small delay for UI to load
-            return true
-        else
-            sendNotification("Error", "Proximity prompt for NPC not found!")
-        end
-    else
-        sendNotification("Error", "NPC not found in workspace!")
-    end
+    sendNotification("Error", "Proximity prompt for NPC not found!")
     return false
 end
 
-local function handleQuest(npcName, questAction)
-    ensureCharacterIsAlive()
+local function processQuest(action)
+    ensureCharacterIsAlive() -- Wait until the character is alive
 
     while isNadeshikoFieldActive() do
-        wait(0.5)
+        wait(0.5) -- Wait until the Nadeshiko Field is inactive
     end
 
-    local success = false
-    sendNotification("Quest", "Interacting with NPC for quest...")
-
-    while not success do
-        ensureCharacterIsAlive()
+    local actionText = action == "CompleteQuest" and "complete the quest" or "take/retake the quest"
+    sendNotification("Quest", "Teleporting to quest NPC to " .. actionText .. "...")
+    
+    local actionSucceeded = false
+    
+    while not actionSucceeded do
+        ensureCharacterIsAlive() -- Verify character is still alive during the process
+        
         teleportToPositionIfNadeshikoInactive(questNPCPosition)
         wait(1)
-
-        if interactWithNPC(npcName) then
-            if not waitForDialogueToActivate(5) then
-                sendNotification("Error", "Dialogue activation failed.")
-                return
-            end
-
-            local dialogueType = waitForDialogueButtons(5)
-            if dialogueType == "CompleteQuest" and questAction == "Complete" then
-                sendNotification("Debug", "Attempting to complete quest...")
-
-                -- Old remote sequence restored for quest completion
-                local npc = workspace.NPCs:FindFirstChild(npcName)
-                if npc then
-                    local prompt = npc:FindFirstChild("ProximityPrompt")
-                    if prompt then
-                        fireproximityprompt(prompt)
-                        for i = 1, 2 do
-                            ensureCharacterIsAlive() -- Ensure alive before interacting further
-                            if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
-                                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2) -- Progress dialogue
-                                wait(1)
-                            else
-                                sendNotification("Error", "DialogueHandler not found!")
-                                return
-                            end
-                        end
-                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Confirm completion
-                        wait(1)
-                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Final confirmation
-                    else
-                        sendNotification("Error", "Proximity prompt for NPC not found!")
-                        return
-                    end
+        
+        local npc = workspace.NPCs:FindFirstChild("Agor")
+        if npc and interactWithNPC(npc) then
+            for _ = 1, 4 do
+                ensureCharacterIsAlive() -- Ensure alive before interacting further
+                if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    wait(1)
                 else
-                    sendNotification("Error", "Quest NPC not found in workspace!")
+                    sendNotification("Error", "DialogueHandler not found!")
                     return
                 end
-
-                -- Validate quest completion
-                if isQuestCompleted() then
-                    sendNotification("Quest", "Quest completed successfully.")
-                    sendDiscordNotification("Quest Completed", "The quest was completed successfully.")
-                    success = true
-                else
-                    sendNotification("Error", "Quest completion failed! Retrying...")
-                end
-            elseif dialogueType == "TakeQuest" and questAction == "Take" then
-                sendNotification("Debug", "Attempting to take quest...")
-
-                for _ = 1, 4 do
-                    ensureCharacterIsAlive()
-                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1) -- Take quest dialogue
-                    wait(1)
-                end
-
-                if hasQuest() then
-                    sendNotification("Quest", "Quest successfully taken.")
-                    sendDiscordNotification("Quest Taken", "The quest was taken successfully.")
-                    success = true
-                else
-                    sendNotification("Error", "Quest taking failed! Retrying...")
-                end
-            else
-                sendNotification("Error", "Unexpected dialogue type or action mismatch!")
-                sendNotification("Debug", "Dialogue type detected: " .. tostring(dialogueType) .. ", Expected: " .. questAction)
             end
+
+            local dialogueState = getDialogueState()
+            if dialogueState == action then
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                wait(1)
+                replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                sendNotification("Quest", "Successfully handled " .. actionText .. ".")
+                actionSucceeded = true
+            else
+                sendNotification("Error", "Dialogue mismatch! Retrying interaction...")
+            end
+        else
+            sendNotification("Error", "Quest NPC not found in workspace or interaction failed!")
         end
-        wait(1)
+        wait(1) -- Retry every second
     end
 end
 
 local function completeQuest()
-    handleQuest("Agor", "Complete")
+    processQuest("CompleteQuest")
 end
 
 local function takeQuest()
-    handleQuest("Agor", "Take")
+    processQuest("TakeRetakeQuest")
 end
 
 -- Helper function to check if an enemy is a boss
@@ -605,67 +535,58 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
+-- Main loop: Combat and quest handling
 spawn(function()
     while true do
         if toggle then
             ensureCharacterIsAlive() -- Ensure the character is alive at the start of each iteration
 
-            -- Quest handling
-            if not questInProgress then
-                if not hasQuest() and not isNadeshikoFieldActive() then
-                    questInProgress = true
-                    ensureCharacterIsAlive()
-                    sendNotification("Quest", "No active quest. Starting quest.")
-                    takeQuest()
-                    resetNotifiedEnemies()
-                    questInProgress = false -- Mark quest handling as done
-                elseif hasQuest() and isQuestCompleted() then
-                    questInProgress = true
-                    ensureCharacterIsAlive()
-                    sendNotification("Quest", "Quest completed. Turning in.")
-                    completeQuest()
-                    wait(1) -- Ensure a delay before retaking the quest
-                    takeQuest()
-                    resetNotifiedEnemies()
-                    questInProgress = false -- Mark quest handling as done
+            -- Quest logic
+            if not hasQuest() and not isNadeshikoFieldActive() then
+                ensureCharacterIsAlive() -- Ensure character is alive before starting a quest
+                sendNotification("Quest", "No active quest. Starting quest.")
+                takeQuest()
+                wait(1)
+                resetNotifiedEnemies()
+            elseif hasQuest() and isQuestCompleted() then
+                ensureCharacterIsAlive() -- Ensure character is alive before completing a quest
+                sendNotification("Quest", "Quest completed. Turning in.")
+                completeQuest()
+                wait(1)
+                takeQuest()
+                resetNotifiedEnemies()
+            end
+
+            -- Combat logic
+            local targetFound = false
+            for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                    ensureCharacterIsAlive() -- Ensure character is alive before engaging in combat
+                    if isBoss(enemy) or isSpecialEnemy(enemy) then
+                        if not notifiedEnemies[enemy] then
+                            sendNotification("Combat", "Engaging special enemy: " .. enemy.Name)
+                            notifiedEnemies[enemy] = true
+                        end
+                        targetFound = true
+                        attackEnemy(enemy)
+                        break
+                    end
                 end
             end
 
-            -- Combat handling
-            if not questInProgress then
-                local targetFound = false
+            -- Fallback to quest-specific enemies
+            if not targetFound and hasQuest() and not isQuestCompleted() then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
                     if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        ensureCharacterIsAlive()
-                        if isBoss(enemy) or isSpecialEnemy(enemy) then
-                            if not notifiedEnemies[enemy] then
-                                sendNotification("Combat", "Engaging special enemy: " .. enemy.Name)
-                                notifiedEnemies[enemy] = true
-                            end
-                            targetFound = true
-                            attackEnemy(enemy)
-                            break
-                        end
-                    end
-                end
-
-                -- Fallback to quest-specific enemies
-                if not targetFound and hasQuest() and not isQuestCompleted() then
-                    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-                        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            ensureCharacterIsAlive()
-                            for _, targetName in ipairs(targetEnemies) do
-                                if enemy.Name:find(targetName) then
-                                    attackEnemy(enemy)
-                                    if isQuestCompleted() then
-                                        questInProgress = true -- Lock quest handling
-                                        completeQuest()
-                                        wait(1) -- Ensure delay before taking the next quest
-                                        takeQuest()
-                                        resetNotifiedEnemies()
-                                        questInProgress = false -- Unlock quest handling
-                                        break
-                                    end
+                        ensureCharacterIsAlive() -- Ensure character is alive before attacking quest enemies
+                        for _, targetName in ipairs(targetEnemies) do
+                            if enemy.Name:find(targetName) then
+                                attackEnemy(enemy)
+                                if isQuestCompleted() then
+                                    completeQuest()
+                                    takeQuest()
+                                    resetNotifiedEnemies()
+                                    break
                                 end
                             end
                         end
