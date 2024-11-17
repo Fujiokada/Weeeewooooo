@@ -20,6 +20,7 @@ local isCharacterAliveFlag = false
 local HealthFlag = true
 local deathNotificationSent = false  -- Track if the death notification has been sent
 local combatPauseNotified = false
+local healthCriticalNotified = false
 local Nadeshik = false
 local notifiedEnemies = {}
 local respawnCharacter 
@@ -161,9 +162,14 @@ local function monitorHealth()
                     local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
 
                     if healthPercentage <= 40 then
+                        if not healthCriticalNotified then
+                            sendNotification("Health Monitor", "Health critical. Resetting character.")
+                            healthCriticalNotified = true -- Prevent repeated notifications
+                        end
                         humanoid.Health = 0
-                        sendNotification("Health Monitor", "Health critical. Resetting character.")
                         ensureCharacterIsAlive()
+                    else
+                        healthCriticalNotified = false -- Reset flag when health is above the threshold
                     end
                 end
             end
