@@ -347,7 +347,8 @@ end
 local function waitForDialogueToActivate(timeout)
     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
     local startTime = tick()
-    
+
+    -- Wait for the dialogue system to activate
     while not playerGui.GameUI.Dialogue.CurrentlySpeaking.Value do
         if tick() - startTime > timeout then
             sendNotification("Error", "Dialogue failed to activate within the timeout!")
@@ -355,6 +356,7 @@ local function waitForDialogueToActivate(timeout)
         end
         wait(0.1)
     end
+    sendNotification("Debug", "Dialogue activated successfully.")
     return true
 end
 
@@ -362,7 +364,8 @@ local function waitForDialogueButtons(timeout)
     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
     local dialogueFrame = playerGui.GameUI.Dialogue.ScrollingFrame
     local startTime = tick()
-    
+
+    -- Wait for the buttons to appear in the dialogue frame
     while not (dialogueFrame:FindFirstChild("ActiveQuest") or dialogueFrame:FindFirstChild("AvailableQuests")) do
         if tick() - startTime > timeout then
             sendNotification("Error", "Quest buttons not found in dialogue frame within timeout!")
@@ -371,9 +374,12 @@ local function waitForDialogueButtons(timeout)
         wait(0.1)
     end
 
+    -- Check which button exists and return the dialogue type
     if dialogueFrame:FindFirstChild("ActiveQuest") then
+        sendNotification("Debug", "Detected 'Complete Quest' dialogue.")
         return "CompleteQuest"
     elseif dialogueFrame:FindFirstChild("AvailableQuests") then
+        sendNotification("Debug", "Detected 'Take Quest' dialogue.")
         return "TakeQuest"
     else
         return nil
@@ -385,6 +391,7 @@ local function interactWithNPC(npcName)
     if npc then
         local prompt = npc:FindFirstChild("ProximityPrompt")
         if prompt then
+            sendNotification("Debug", "Interacting with NPC: " .. npcName)
             fireproximityprompt(prompt)
             wait(0.5) -- Small delay for UI to load
             return true
@@ -441,6 +448,7 @@ local function handleQuest(npcName, questAction)
                 end
             else
                 sendNotification("Error", "Unexpected dialogue type or action mismatch!")
+                sendNotification("Debug", "Dialogue type detected: " .. tostring(dialogueType) .. ", Expected: " .. questAction)
             end
         end
         wait(1)
