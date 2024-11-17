@@ -26,6 +26,7 @@ local notifiedEnemies = {}
 local respawnCharacter 
 local isCharacterAlive
 local isRespawning = false 
+local pauseTasks = false
 local ensureCharacterIsAlive
 local webhookURL = "https://discord.com/api/webhooks/1306244225725370471/wFVYW4SdmUMhvPOxqTY0VncLWLEtArsrGs3lnzSu38aKpHdlP84FD6IbcWCgqJ5Z1wyS"
 local webhookURL2 = "https://discord.com/api/webhooks/1307349029838913576/gOk1wJEerT9PAfMdh9M0Og12QuPuIqx9Jm3gofYGNPt82D6LjKKgzc4MbHHBonLkO7iA"
@@ -146,6 +147,7 @@ local function respawnCharacter()
     if isRespawning then return end -- Prevent overlapping respawns
 
     isRespawning = true
+    pauseTasks = true -- Pause all tasks
     sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
     wait(2)
 
@@ -159,6 +161,7 @@ local function respawnCharacter()
 
     createFloatingPlatform() -- Recreate floating platform
     sendNotification("Character Status", "Character respawned successfully.")
+    pauseTasks = false -- Reactivate tasks
     isRespawning = false -- Allow new respawn attempts
 end
 
@@ -477,7 +480,7 @@ end
 local combatPauseNotified = false
 
 local function attackEnemy(enemy)
-    if isLowHealth() then return end -- Prevent attack if health is low
+    if pauseTasks or if isLowHealth() then return end -- Prevent attack if health is low
 
     -- Check if the enemy is a boss or special enemy
     local isEnemyBoss = isBoss(enemy)
@@ -552,7 +555,7 @@ end
 -- Main loop: Combat and quest handling
 spawn(function()
     while true do
-        if toggle then
+        if toggle and not pauseTasks then
             ensureCharacterIsAlive() -- Ensure the character is alive at the start of each iteration
 
             -- Quest logic
