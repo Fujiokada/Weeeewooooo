@@ -530,7 +530,7 @@ spawn(function()
             end
 
             -- Fallback to quest-specific enemies
-            if not targetFound and hasQuest() and not isQuestCompleted() then
+            if not targetFound and not isPaused and hasQuest() and not isQuestCompleted() then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
                     if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                         ensureCharacterIsAlive() -- Ensure character is alive before attacking quest enemies
