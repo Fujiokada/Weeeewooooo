@@ -497,7 +497,6 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
--- Main loop: Combat and quest handling
 spawn(function()
     while true do
         if toggle and not isPaused then
@@ -508,19 +507,28 @@ spawn(function()
 
             -- Combat logic
             local targetFound = false
+            local bossEnemy = nil
+            local specialEnemy = nil
+
+            -- Iterate through enemies to identify bosses and special enemies
             for _, enemy in ipairs(aiCharacters:GetChildren()) do
                 if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                    ensureCharacterIsAlive() -- Ensure character is alive before engaging in combat
-                    if isBoss(enemy) or isSpecialEnemy(enemy) then
-                        if not notifiedEnemies[enemy] then
-                            sendNotification("Combat", "Engaging special enemy: " .. enemy.Name)
-                            notifiedEnemies[enemy] = true
-                        end
-                        targetFound = true
-                        attackEnemy(enemy)
-                        break
+                    if isBoss(enemy) then
+                        bossEnemy = enemy
+                        break -- Stop searching as boss has highest priority
+                    elseif isSpecialEnemy(enemy) then
+                        specialEnemy = enemy
                     end
                 end
+            end
+
+            -- Attack the boss if found, otherwise attack a special enemy
+            if bossEnemy then
+                attackEnemy(bossEnemy)
+                targetFound = true
+            elseif specialEnemy then
+                attackEnemy(specialEnemy)
+                targetFound = true
             end
 
             -- Fallback to quest-specific enemies
