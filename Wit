@@ -424,9 +424,6 @@ local function isSpecialEnemy(enemy)
     return false
 end
 
--- Flag to track whether the combat pause notification has been sent
-local combatPauseNotified = false
-
 local function attackEnemy(enemy)
     if isLowHealth() then return end -- Prevent attack if health is low
 
