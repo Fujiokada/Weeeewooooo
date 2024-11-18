@@ -123,7 +123,7 @@ local function autoSpinner()
             clickSpinButton()
 
             -- Wait for 1 second to allow the spin to complete and check the result
-            wait(1)
+            wait(0.3)
 
             -- Handle rare elements
             if handleRareElement() then
