@@ -311,7 +311,7 @@ end
 local function isLowHealth()
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         local humanoid = player.Character.Humanoid
-        return humanoid.Health <= humanoid.MaxHealth * 0.4
+        return humanoid.Health <= humanoid.MaxHealth * 0.2
     end
     return false
 end
@@ -563,7 +563,7 @@ local function monitorHealth()
                     local humanoid = character.Humanoid
                     local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
 
-                    if healthPercentage <= 40 then
+                    if healthPercentage <= 20 then
                         -- Prevent resetting if already dead or respawning
                         if not isCharacterAlive() or isRespawning then
                             wait(0.5) -- Allow time for other processes
