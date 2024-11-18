@@ -402,11 +402,9 @@ local function isBoss(enemy)
        and enemy.Head.billboardAtt.BillboardGui:FindFirstChild("TextLabel") then
 
         local textLabel = enemy.Head.billboardAtt.BillboardGui.TextLabel
-        local bossTypes = {"Rare Boss", "Epic Boss", "Legendary Boss", "Mythical Boss"}
-        for _, bossType in ipairs(bossTypes) do
-            if textLabel.Text == bossType then
-                return true
-            end
+        -- Convert text to lowercase and check for "boss"
+        if string.lower(textLabel.Text):find("boss") then
+            return true
         end
     end
     return false
