@@ -1,51 +1,57 @@
-local player = game:GetService("Players").LocalPlayer
-local replicatedStorage = game:GetService("ReplicatedStorage")
-local spinRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("RaceSpinHandler")
-local webhookURL = "https://discord.com/api/webhooks/1306244225725370471/wFVYW4SdmUMhvPOxqTY0VncLWLEtArsrGs3lnzSu38aKpHdlP84FD6IbcWCgqJ5Z1wyS"
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Whitelisted races
-local whitelistedRaces = {
-    ["Ascended"] = true,
-    ["Arch"] = true,
-    ["Chtharim"] = true,
-    ["Darkarch"] = true,
-    ["Descended"] = true,
-    ["Divinari"] = true,
-    ["Oni"] = true,
-    ["Seer"] = true,
-    ["Commander"] = true,
-    ["Starborn"] = true,
-    ["Machine"] = true
+-- Player variables
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local gameUI = playerGui:WaitForChild("GameUI")
+local warningDialog = gameUI:WaitForChild("Warning")
+local spinButton = gameUI.Spin.MagicFrame.Spin
+local slotFrame = gameUI:WaitForChild("SlotFrame")
+local currentSlotFrame = slotFrame:WaitForChild("CurrentSlotFrame")
+local currentElement = currentSlotFrame:WaitForChild("CurrentElement")
+local spinHandler = ReplicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpinHandler")
+
+-- Webhook URL
+local webhookURL = "https://discord.com/api/webhooks/1257886779583893585/R7T2QtxC2Q7fQh88awOCAsnAa4O1HUPJJxY-ozRFsFbaeIArfK-d2Ps4sUsHkXS2pzsA"
+
+-- Whitelist of rare elements
+local whitelist = {
+    ["Time"] = true,
+    ["Multielement"] = true,
+    ["Bestowed One"] = true,
+    ["Entity Beyond Time"] = true,
+    ["Lightning"] = true,
+    ["Gravity"] = true,
+    ["Dark"] = true,
+    ["Light"] = true,
+    ["Elementless"] = true
 }
 
--- Path to the ContextName where spin results are displayed
-local spinResultPath = player.PlayerGui.GameUI.Spin.Spinner.CurrentTemplate.SpinTemplate.ID.ContentText
-
--- Send a local notification
-local function sendNotification(title, text)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = title;
-        Text = text;
-        Duration = 2;
-    })
-end
+-- Spinner state
+local autoSpinEnabled = false
+local isSpinning = false
 
 -- Discord webhook notifier
-local function sendDiscordNotification(race)
+local function sendDiscordNotification(status, details)
     local data = {
-        ["username"] = "Race Spinner Notifier",
+        ["username"] = "Auto Spinner",
         ["embeds"] = {{
-            ["title"] = "**Whitelisted Race Obtained!**",
-            ["description"] = "Successfully rolled: " .. race,
-            ["color"] = 65280,  -- Green color
+            ["title"] = "**Spinner Update: " .. status .. "**",
+            ["description"] = details,
+            ["color"] = 16711935, -- Pink color (hex #FF00FF)
             ["footer"] = {
-                ["text"] = "Roblox Race Spinner Notifier",
+                ["text"] = "Roblox Auto Spinner",
             },
-            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")  -- UTC time
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
     }
 
-    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+    local jsonData = HttpService:JSONEncode(data)
 
     pcall(function()
         syn.request({
@@ -59,22 +65,90 @@ local function sendDiscordNotification(race)
     end)
 end
 
--- Auto spinner function
-local function startAutoSpinner()
-    while true do
-        -- Fire the spin remote
-        spinRemote:FireServer()
-        wait(0.2)  -- Small delay to prevent excessive spinning
-        
-        -- Check the spin result
-        local currentRace = spinResultPath.Text
-        if whitelistedRaces[currentRace] then
-            sendNotification("Race Spin", "Obtained whitelisted race: " .. currentRace)
-            sendDiscordNotification(currentRace)
-            break  -- Stop spinning if a whitelisted race is obtained
+-- Function to check if a rare element was rolled and handle accordingly
+local function handleRareElement()
+    if warningDialog.Visible then
+        -- Wait for 0.5 seconds to ensure the element ID is populated
+        wait(0.5)
+
+        -- Check the rolled element
+        local elementId = currentElement:FindFirstChild("ID")
+        local rolledElement = elementId and (elementId.ContentText or elementId.Text)
+
+        if rolledElement then
+            if whitelist[rolledElement] then
+                -- Whitelisted element found
+                sendDiscordNotification(
+                    "Whitelisted Element Rolled!",
+                    "A rare element has been rolled: **" .. rolledElement .. "**. The spinner is now stopping."
+                )
+                autoSpinEnabled = false -- Stop the spinner
+                return true -- Stop further processing
+            else
+                -- Unwanted rare element found
+                warningDialog.Visible = false -- Dismiss the warning dialog
+                spinHandler:FireServer() -- Roll off the unwanted element
+                sendDiscordNotification(
+                    "Unwanted Rare Element",
+                    "Rolled an unwanted rare element: **" .. rolledElement .. "**. Re-rolling."
+                )
+                return false -- Continue spinning
+            end
         end
+    end
+    return false -- No action needed
+end
+
+-- Function to simulate a click on the spin button
+local function clickSpinButton()
+    local buttonPosition = spinButton.AbsolutePosition
+    local buttonSize = spinButton.AbsoluteSize
+    local autoClickPosition = Vector2.new(
+        buttonPosition.X + buttonSize.X / 2,
+        buttonPosition.Y + buttonSize.Y / 2
+    )
+
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+    wait(0.1)
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+end
+
+-- Auto spinner function
+local function autoSpinner()
+    while autoSpinEnabled do
+        if not isSpinning then
+            isSpinning = true
+
+            -- Simulate a click on the spin button
+            clickSpinButton()
+
+            -- Wait for 1 second to allow the spin to complete and check the result
+            wait(1)
+
+            -- Handle rare elements
+            if handleRareElement() then
+                break -- Stop spinning if a whitelisted element is rolled
+            end
+
+            isSpinning = false -- Allow the next spin
+        end
+
+        wait(0.1) -- Prevent script overload
     end
 end
 
--- Start the auto spinner
-startAutoSpinner()
+-- Toggle auto spinner on/off with the T key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.T then
+        autoSpinEnabled = not autoSpinEnabled
+
+        if autoSpinEnabled then
+            sendDiscordNotification("Spinner Enabled", "The auto spinner has been enabled and is now spinning for rare elements.")
+            autoSpinner()
+        else
+            sendDiscordNotification("Spinner Disabled", "The auto spinner has been disabled.")
+        end
+    end
+end)
