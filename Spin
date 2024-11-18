@@ -10,7 +10,6 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local gameUI = playerGui:WaitForChild("GameUI")
 local warningDialog = gameUI:WaitForChild("Warning")
-local spinButton = gameUI.Spin.MagicFrame.Spin
 local slotFrame = gameUI:WaitForChild("SlotFrame")
 local currentSlotFrame = slotFrame:WaitForChild("CurrentSlotFrame")
 local currentElement = currentSlotFrame:WaitForChild("CurrentElement")
@@ -35,6 +34,7 @@ local whitelist = {
 -- Spinner state
 local autoSpinEnabled = false
 local isSpinning = false
+local spinButtonPosition = nil -- Position of the spin button
 
 -- Discord webhook notifier
 local function sendDiscordNotification(status, details)
@@ -101,16 +101,16 @@ end
 
 -- Function to simulate a click on the spin button
 local function clickSpinButton()
-    local buttonPosition = spinButton.AbsolutePosition
-    local buttonSize = spinButton.AbsoluteSize
-    local autoClickPosition = Vector2.new(
-        buttonPosition.X + buttonSize.X / 2,
-        buttonPosition.Y + buttonSize.Y / 2
-    )
-
-    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
-    wait(0.1)
-    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+    if spinButtonPosition then
+        VirtualInputManager:SendMouseButtonEvent(spinButtonPosition.X, spinButtonPosition.Y, 0, true, game, 0)
+        wait(0.1)
+        VirtualInputManager:SendMouseButtonEvent(spinButtonPosition.X, spinButtonPosition.Y, 0, false, game, 0)
+    else
+        sendDiscordNotification(
+            "Error",
+            "Spin button position not set. Press 'Y' while hovering over the spin button to set it."
+        )
+    end
 end
 
 -- Auto spinner function
@@ -150,5 +150,15 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         else
             sendDiscordNotification("Spinner Disabled", "The auto spinner has been disabled.")
         end
+    end
+
+    -- Set the spin button position when the Y key is pressed
+    if input.KeyCode == Enum.KeyCode.Y then
+        local mousePosition = UserInputService:GetMouseLocation()
+        spinButtonPosition = Vector2.new(mousePosition.X, mousePosition.Y)
+        sendDiscordNotification(
+            "Spin Button Position Set",
+            "Spin button position set at: **" .. tostring(spinButtonPosition) .. "**."
+        )
     end
 end)
