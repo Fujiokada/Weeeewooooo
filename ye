@@ -43,66 +43,123 @@ local function sendNotification(title, text)
     })
 end
 
+-- Fallback for different executors
 local httpRequest = syn and syn.request or request or http_request or fluxus.request
 if not httpRequest then
     error("Your executor does not support HTTP requests.")
 end
 
+-- Function to format color as hex
+local function getColorHex(status)
+    if status == "Quest Completed" then
+        return 65280 -- Green
+    elseif status == "Quest Retake" then
+        return 16711680 -- Red
+    else
+        return 16766720 -- Orange (default for other notifications)
+    end
+end
+
+-- Function to send a quest notification to Discord
 local function sendDiscordNotification(status, details)
     local data = {
         ["username"] = "Quest Notifier",
         ["embeds"] = {{
-            ["title"] = "**Quest Update: " .. status .. "**",
+            ["title"] = "**Quest Status Update**",
             ["description"] = details,
-            ["color"] = status == "Quest Completed" and 65280 or 16711680, -- Green or Red
-            ["footer"] = { ["text"] = "Roblox Quest Notifier" },
+            ["color"] = getColorHex(status),
+            ["fields"] = {
+                {
+                    ["name"] = "Status",
+                    ["value"] = "`" .. status .. "`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Timestamp",
+                    ["value"] = "<t:" .. os.time() .. ":R>", -- Discord's relative time format
+                    ["inline"] = true
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Roblox Quest Notifier",
+                ["icon_url"] = "https://i.imgur.com/AfFp7pu.png" -- Example icon
+            },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
+    -- Send the POST request
     local success, err = pcall(function()
         httpRequest({
             Url = webhookURL,
             Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
             Body = jsonData
         })
     end)
 
     if success then
-        sendNotification("Quest notification sent successfully: " .. status)
+        print("Quest notification sent successfully: " .. status)
     else
-        sendNotification("Failed to send quest notification: " .. tostring(err))
+        warn("Failed to send quest notification: " .. tostring(err))
     end
 end
 
+-- Function to send a boss kill notification to Discord
 local function sendBossKillNotification(enemyName, enemyType)
     local data = {
         ["username"] = "Boss Kill Notifier",
         ["embeds"] = {{
             ["title"] = "**Enemy Defeated: " .. enemyName .. "**",
-            ["description"] = "Type: " .. enemyType .. "\nPlayer: Venqtrix",
-            ["color"] = 16766720, -- Orange for boss/special enemy kill
-            ["footer"] = { ["text"] = "Roblox Enemy Kill Notifier" },
+            ["description"] = "A powerful foe has been vanquished in the game!",
+            ["color"] = 16766720, -- Orange
+            ["fields"] = {
+                {
+                    ["name"] = "Enemy Type",
+                    ["value"] = "`" .. enemyType .. "`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Defeated By",
+                    ["value"] = "`Player: Venqtrix`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Timestamp",
+                    ["value"] = "<t:" .. os.time() .. ":R>", -- Discord's relative time format
+                    ["inline"] = false
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Roblox Boss Kill Notifier",
+                ["icon_url"] = "https://i.imgur.com/AfFp7pu.png" -- Example icon
+            },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
+    -- Send the POST request
     local success, err = pcall(function()
         httpRequest({
             Url = webhookURL2,
             Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
             Body = jsonData
         })
     end)
 
     if success then
-        sendNotification("Boss kill notification sent successfully: " .. enemyName)
+        print("Boss kill notification sent successfully: " .. enemyName)
     else
-        sendNotification("Failed to send boss kill notification: " .. tostring(err))
+        warn("Failed to send boss kill notification: " .. tostring(err))
     end
 end
 
