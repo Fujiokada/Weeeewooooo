@@ -144,18 +144,15 @@ local function createFloatingPlatform()
     end
 end
 
--- Refactor respawnCharacter to handle only respawning and re-prioritize boss targets
+-- Refactor respawnCharacter to handle only respawning
 local function respawnCharacter()
     if isRespawning then return end -- Prevent overlapping respawns
 
     isRespawning = true
-    isPaused = true -- Pause all active game functionality
-
     sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
     wait(3)
 
-    -- Server call to respawn
-    spawnRemote:FireServer(1)
+    spawnRemote:FireServer(1) -- Server call to respawn
     wait(3) -- Allow time for the respawn process
 
     -- Wait for the character to fully respawn
@@ -165,20 +162,8 @@ local function respawnCharacter()
 
     createFloatingPlatform() -- Recreate floating platform
     sendNotification("Character Status", "Character respawned successfully.")
-
-    -- Prioritize any boss enemies after respawn
-    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-        if isBossEnemy(enemy) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-            sendNotification("Combat", "Re-engaging boss: " .. enemy.Name)
-            attackEnemy(enemy) -- Engage the boss immediately
-            break -- Only engage the first boss found
-        end
-    end
-
-    isRespawning = false
-    isPaused = false -- Resume all active game functionality
+    isRespawning = false -- Allow new respawn attempts
 end
-
 
 local function ensureCharacterIsAlive()
     -- Simple check to pause execution until the character is alive
