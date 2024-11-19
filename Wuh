@@ -25,6 +25,7 @@ local Nadeshik = false
 local notifiedEnemies = {}
 local respawnCharacter 
 local isCharacterAlive
+local isEnemyBoss
 local isRespawning = false 
 local isPaused = false
 local ensureCharacterIsAlive
@@ -143,15 +144,18 @@ local function createFloatingPlatform()
     end
 end
 
--- Refactor respawnCharacter to handle only respawning
+-- Refactor respawnCharacter to handle only respawning and re-prioritize boss targets
 local function respawnCharacter()
     if isRespawning then return end -- Prevent overlapping respawns
 
     isRespawning = true
+    isPaused = true -- Pause all active game functionality
+
     sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
     wait(3)
 
-    spawnRemote:FireServer(1) -- Server call to respawn
+    -- Server call to respawn
+    spawnRemote:FireServer(1)
     wait(3) -- Allow time for the respawn process
 
     -- Wait for the character to fully respawn
@@ -161,7 +165,18 @@ local function respawnCharacter()
 
     createFloatingPlatform() -- Recreate floating platform
     sendNotification("Character Status", "Character respawned successfully.")
-    isRespawning = false -- Allow new respawn attempts
+
+    -- Prioritize any boss enemies after respawn
+    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+        if isBossEnemy(enemy) and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            sendNotification("Combat", "Re-engaging boss: " .. enemy.Name)
+            attackEnemy(enemy) -- Engage the boss immediately
+            break -- Only engage the first boss found
+        end
+    end
+
+    isRespawning = false
+    isPaused = false -- Resume all active game functionality
 end
 
 local function ensureCharacterIsAlive()
@@ -464,18 +479,31 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 
-    -- Check if the enemy has been defeated
-    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health <= 0 then
-        if isEnemyBoss then
-            sendNotification("Combat", "Boss defeated: " .. enemy.Name)
-            sendBossKillNotification("Boss Defeated", "A boss named '" .. enemy.Name .. "' was defeated by Venqtrix.")
-        elseif isEnemySpecial then
-            sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
-            sendBossKillNotification("Special Enemy Defeated", "A special enemy named '" .. enemy.Name .. "' was defeated by Venqtrix.")
+-- Check if the enemy has been defeated
+if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health <= 0 then
+    if isEnemyBoss then
+        sendNotification("Combat", "Boss defeated: " .. enemy.Name)
+        
+        -- Add retries for webhook notification
+        local success = false
+        for attempt = 1, 3 do
+            success = pcall(function()
+                sendBossKillNotification("Boss Defeated", "A boss named '" .. enemy.Name .. "' was defeated by Venqtrix.")
+            end)
+            if success then break end
+            wait(0.5) -- Wait before retrying
         end
-
-        notifiedEnemies[enemy] = nil -- Reset notification tracking for this enemy
+        
+        if not success then
+            warn("Failed to send boss kill notification for: " .. enemy.Name)
+        end
+    elseif isEnemySpecial then
+        sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
+        sendBossKillNotification("Special Enemy Defeated", "A special enemy named '" .. enemy.Name .. "' was defeated by Venqtrix.")
     end
+
+    notifiedEnemies[enemy] = nil -- Reset notification tracking for this enemy
+end
 
     -- Stop combat if Nadeshiko Field activates or if health drops
     if isNadeshikoFieldActive() or isLowHealth() then
