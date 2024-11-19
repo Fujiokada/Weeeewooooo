@@ -43,7 +43,7 @@ local function sendNotification(title, text)
     })
 end
 
--- Discord webhook notifier
+-- Function to send a quest notification to Discord
 local function sendDiscordNotification(status, details)
     local data = {
         ["username"] = "Quest Notifier",
@@ -60,7 +60,8 @@ local function sendDiscordNotification(status, details)
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
 
-    pcall(function()
+    -- Send the POST request
+    local success, err = pcall(function()
         syn.request({
             Url = webhookURL,
             Method = "POST",
@@ -70,8 +71,13 @@ local function sendDiscordNotification(status, details)
             Body = jsonData
         })
     end)
+
+    if not success then
+        sendNotification("Failed to send quest notification: " .. tostring(err))
+    end
 end
 
+-- Function to send a boss kill notification to Discord
 local function sendBossKillNotification(enemyName, enemyType)
     local data = {
         ["username"] = "Boss Kill Notifier",
@@ -88,7 +94,8 @@ local function sendBossKillNotification(enemyName, enemyType)
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
 
-    pcall(function()
+    -- Send the POST request
+    local success, err = pcall(function()
         syn.request({
             Url = webhookURL2,
             Method = "POST",
@@ -98,6 +105,10 @@ local function sendBossKillNotification(enemyName, enemyType)
             Body = jsonData
         })
     end)
+
+    if not success then
+        sendNotification("Failed to send boss kill notification: " .. tostring(err))
+    end
 end
 
 local function isCharacterAlive()
