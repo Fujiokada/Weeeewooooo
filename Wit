@@ -566,6 +566,9 @@ local function monitorHealth()
                         if not isCharacterAlive() or isRespawning then
                             wait(0.5) -- Allow time for other processes
                         else
+                            -- Pause all processes
+                            isPaused = true
+
                             -- Wait for `NadeshikoField` to disappear
                             local function isFieldActive()
                                 for _, part in ipairs(workspace.AtmosphereZones:GetChildren()) do
@@ -591,13 +594,18 @@ local function monitorHealth()
                                         character.HumanoidRootPart.CFrame = CFrame.new(safePosition)
                                         sendNotification("Health Monitor", "Teleported to safe position (" .. i .. "/5).")
                                     end
-                                    wait(0.5) -- Wait 1 second between each teleport
+                                    wait(0.5) -- Wait 0.5 seconds between each teleport
                                 end
 
                                 -- Reset the character
                                 humanoid.Health = 0 -- Trigger character reset
-                                ensureCharacterIsAlive() -- Wait for respawn to complete
+
+                                -- Wait for respawn
+                                ensureCharacterIsAlive()
                             end
+
+                            -- Resume all processes after respawn
+                            isPaused = false
                         end
                     else
                         healthCriticalNotified = false -- Reset flag when health is above threshold
