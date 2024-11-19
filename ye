@@ -43,31 +43,29 @@ local function sendNotification(title, text)
     })
 end
 
--- Function to send a quest notification to Discord
+local httpRequest = syn and syn.request or request or http_request or fluxus.request
+if not httpRequest then
+    error("Your executor does not support HTTP requests.")
+end
+
 local function sendDiscordNotification(status, details)
     local data = {
         ["username"] = "Quest Notifier",
         ["embeds"] = {{
             ["title"] = "**Quest Update: " .. status .. "**",
             ["description"] = details,
-            ["color"] = status == "Quest Completed" and 65280 or 16711680, -- Green for completion, Red for retake
-            ["footer"] = {
-                ["text"] = "Roblox Quest Notifier",
-            },
+            ["color"] = status == "Quest Completed" and 65280 or 16711680, -- Green or Red
+            ["footer"] = { ["text"] = "Roblox Quest Notifier" },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
-
-    -- Send the POST request
     local success, err = pcall(function()
-        syn.request({
+        httpRequest({
             Url = webhookURL,
             Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
+            Headers = { ["Content-Type"] = "application/json" },
             Body = jsonData
         })
     end)
@@ -79,7 +77,6 @@ local function sendDiscordNotification(status, details)
     end
 end
 
--- Function to send a boss kill notification to Discord
 local function sendBossKillNotification(enemyName, enemyType)
     local data = {
         ["username"] = "Boss Kill Notifier",
@@ -87,23 +84,17 @@ local function sendBossKillNotification(enemyName, enemyType)
             ["title"] = "**Enemy Defeated: " .. enemyName .. "**",
             ["description"] = "Type: " .. enemyType .. "\nPlayer: Venqtrix",
             ["color"] = 16766720, -- Orange for boss/special enemy kill
-            ["footer"] = {
-                ["text"] = "Roblox Enemy Kill Notifier",
-            },
+            ["footer"] = { ["text"] = "Roblox Enemy Kill Notifier" },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
-
-    -- Send the POST request
     local success, err = pcall(function()
-        syn.request({
+        httpRequest({
             Url = webhookURL2,
             Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
+            Headers = { ["Content-Type"] = "application/json" },
             Body = jsonData
         })
     end)
