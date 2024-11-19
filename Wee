@@ -480,7 +480,7 @@ if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health <= 0 then
         end
         
         if not success then
-            warn("Failed to send boss kill notification for: " .. enemy.Name)
+            sendNotification("Failed to send boss kill notification for: " .. enemy.Name)
         end
     elseif isEnemySpecial then
         sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
