@@ -3,6 +3,12 @@ _G.Toggle = true
 local folderPath = workspace.Spawn["Blocktal Grounds"].Instances
 local webhookUrl = "https://discord.com/api/webhooks/1308269334568894474/_Hq8z-YbKPGhWJkKfE_rE3cKhkwKEDPcGC9nGLP32YLTAv4WAk3NoBk6KQPo2NqbUCl6"
 
+-- Fallback for different executors
+local httpRequest = syn and syn.request or request or http_request or fluxus.request
+if not httpRequest then
+    error("Your executor does not support HTTP requests.")
+end
+
 -- Table to store clicked items
 local clickedItems = {}
 
@@ -19,7 +25,7 @@ local function notifyDiscord(itemName, itemColor)
     local colorHex = getColorHex(itemColor)
     local data = {
         ["username"] = "Item Collector",
-        ["embeds"] = { {
+        ["embeds"] = {{
             ["title"] = "**Item Collected: " .. itemName .. "**",
             ["description"] = "An item has been collected in the game!",
             ["color"] = colorHex,
@@ -42,14 +48,14 @@ local function notifyDiscord(itemName, itemColor)
                 ["text"] = "Roblox Item Notifier"
             },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")  -- UTC time
-        } }
+        }}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
 
     -- Send POST request
     local success, err = pcall(function()
-        syn.request({
+        httpRequest({
             Url = webhookUrl,
             Method = "POST",
             Headers = {
