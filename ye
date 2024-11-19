@@ -50,11 +50,11 @@ local function sendDiscordNotification(status, details)
         ["embeds"] = {{
             ["title"] = "**Quest Update: " .. status .. "**",
             ["description"] = details,
-            ["color"] = status == "Quest Completed" and 65280 or 16711680,  -- Green for completion, Red for retake
+            ["color"] = status == "Quest Completed" and 65280 or 16711680, -- Green for completion, Red for retake
             ["footer"] = {
                 ["text"] = "Roblox Quest Notifier",
             },
-            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")  -- UTC time
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
     }
 
@@ -72,8 +72,10 @@ local function sendDiscordNotification(status, details)
         })
     end)
 
-    if not success then
-        sendNotification("Failed to send quest notification: " .. tostring(err))
+    if success then
+        print("Quest notification sent successfully: " .. status)
+    else
+        warn("Failed to send quest notification: " .. tostring(err))
     end
 end
 
@@ -106,8 +108,10 @@ local function sendBossKillNotification(enemyName, enemyType)
         })
     end)
 
-    if not success then
-        sendNotification("Failed to send boss kill notification: " .. tostring(err))
+    if success then
+        print("Boss kill notification sent successfully: " .. enemyName)
+    else
+        warn("Failed to send boss kill notification: " .. tostring(err))
     end
 end
 
