@@ -25,7 +25,8 @@ local Nadeshik = false
 local notifiedEnemies = {}
 local respawnCharacter 
 local isCharacterAlive
-local isEnemyBoss
+local isBossEnemy
+local isEnemyBoss 
 local isRespawning = false 
 local isPaused = false
 local ensureCharacterIsAlive
