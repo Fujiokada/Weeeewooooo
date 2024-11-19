@@ -21,9 +21,25 @@ local function notifyDiscord(itemName, itemColor)
         ["username"] = "Item Collector",
         ["embeds"] = { {
             ["title"] = "**Item Collected: " .. itemName .. "**",
+            ["description"] = "An item has been collected in the game!",
             ["color"] = colorHex,
+            ["fields"] = {
+                {
+                    ["name"] = "Color",
+                    ["value"] = string.format("`RGB: (%d, %d, %d)`", 
+                        math.floor(itemColor.R * 255), 
+                        math.floor(itemColor.G * 255), 
+                        math.floor(itemColor.B * 255)),
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Time Collected",
+                    ["value"] = "<t:" .. os.time() .. ":R>", -- Discord's relative time format
+                    ["inline"] = true
+                }
+            },
             ["footer"] = {
-                ["text"] = "Roblox Item Notifier",
+                ["text"] = "Roblox Item Notifier"
             },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")  -- UTC time
         } }
@@ -31,7 +47,8 @@ local function notifyDiscord(itemName, itemColor)
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
 
-    pcall(function()
+    -- Send POST request
+    local success, err = pcall(function()
         syn.request({
             Url = webhookUrl,
             Method = "POST",
@@ -41,6 +58,10 @@ local function notifyDiscord(itemName, itemColor)
             Body = jsonData
         })
     end)
+
+    if not success then
+        warn("Failed to send webhook notification: " .. tostring(err))
+    end
 end
 
 -- Function to fire ClickDetectors and send notifications
