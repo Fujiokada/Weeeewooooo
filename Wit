@@ -25,7 +25,6 @@ local Nadeshik = false
 local notifiedEnemies = {}
 local respawnCharacter 
 local isCharacterAlive
-local isBossEnemy
 local isRespawning = false 
 local isPaused = false
 local ensureCharacterIsAlive
@@ -465,31 +464,18 @@ local function attackEnemy(enemy)
         wait(0.1)
     end
 
--- Check if the enemy has been defeated
-if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health <= 0 then
-    if isEnemyBoss then
-        sendNotification("Combat", "Boss defeated: " .. enemy.Name)
-        
-        -- Add retries for webhook notification
-        local success = false
-        for attempt = 1, 3 do
-            success = pcall(function()
-                sendBossKillNotification("Boss Defeated", "A boss named '" .. enemy.Name .. "' was defeated by Venqtrix.")
-            end)
-            if success then break end
-            wait(0.5) -- Wait before retrying
+    -- Check if the enemy has been defeated
+    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health <= 0 then
+        if isEnemyBoss then
+            sendNotification("Combat", "Boss defeated: " .. enemy.Name)
+            sendBossKillNotification("Boss Defeated", "A boss named '" .. enemy.Name .. "' was defeated by Venqtrix.")
+        elseif isEnemySpecial then
+            sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
+            sendBossKillNotification("Special Enemy Defeated", "A special enemy named '" .. enemy.Name .. "' was defeated by Venqtrix.")
         end
-        
-        if not success then
-            sendNotification("Failed to send boss kill notification for: " .. enemy.Name)
-        end
-    elseif isEnemySpecial then
-        sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
-        sendBossKillNotification("Special Enemy Defeated", "A special enemy named '" .. enemy.Name .. "' was defeated by Venqtrix.")
-    end
 
-    notifiedEnemies[enemy] = nil -- Reset notification tracking for this enemy
-end
+        notifiedEnemies[enemy] = nil -- Reset notification tracking for this enemy
+    end
 
     -- Stop combat if Nadeshiko Field activates or if health drops
     if isNadeshikoFieldActive() or isLowHealth() then
@@ -534,7 +520,7 @@ spawn(function()
                 end
             end
 
-            -- Attack the boss if found
+            -- Attack the boss if found, otherwise attack a special enemy
             if bossEnemy then
                 attackEnemy(bossEnemy)
                 targetFound = true
@@ -543,20 +529,18 @@ spawn(function()
                 targetFound = true
             end
 
-            -- Ensure quest enemies only attack when no boss is present
+            -- Fallback to quest-specific enemies
             if not targetFound and not isPaused and hasQuest() and not isQuestCompleted() then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
                     if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                         ensureCharacterIsAlive() -- Ensure character is alive before attacking quest enemies
                         for _, targetName in ipairs(targetEnemies) do
                             if enemy.Name:find(targetName) then
-                                -- Recheck for bosses before attacking quest enemies
-                                if not isBossPresent() then
-                                    attackEnemy(enemy)
-                                    if isQuestCompleted() then
-                                        sendNotification("Quest", "Quest progress completed.")
-                                        break
-                                    end
+                              if not isBossPresent() then
+                                attackEnemy(enemy)
+                                if isQuestCompleted() then
+                                    sendNotification("Quest", "Quest progress completed.")
+                                    break
                                 end
                             end
                         end
@@ -567,16 +551,6 @@ spawn(function()
         wait(0.1) -- Small delay to prevent CPU overload
     end
 end)
-
--- Helper to check if a boss is still present
-local function isBossPresent()
-    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isBoss(enemy) then
-            return true
-        end
-    end
-    return false
-end
 
 -- Monitor health and respawn if necessary
 local function monitorHealth()
