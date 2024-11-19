@@ -402,8 +402,8 @@ local function isBoss(enemy)
        and enemy.Head.billboardAtt.BillboardGui:FindFirstChild("TextLabel") then
 
         local textLabel = enemy.Head.billboardAtt.BillboardGui.TextLabel
-        -- Convert text to lowercase and check for "boss"
-        if string.lower(textLabel.Text):find("boss") then
+        -- Check if the text contains "Boss"
+        if textLabel.Text:find("Boss") then
             return true
         end
     end
