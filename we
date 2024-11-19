@@ -234,41 +234,6 @@ local function ensureCharacterIsAlive()
     end
 end
 
-local function monitorHealthAndPause()
-    spawn(function()
-        while true do
-            local character = player.Character
-            local humanoid = character and character:FindFirstChild("Humanoid")
-
-            if humanoid then
-                if humanoid.Health <= 0 then
-                    -- Pause all functions
-                    if not isPaused then
-                        isPaused = true
-                        sendNotification("Character is dead. Pausing autofarm...")
-                        sendNotification("Autofarm", "Paused: Character is dead.")
-
-                        -- Respawn character
-                        respawnCharacter()
-
-                        -- Wait until the character is alive
-                        while not isCharacterAlive() do
-                            wait(0.5)
-                        end
-
-                        -- Unpause after respawn
-                        isPaused = false
-                        sendNotification("Character respawned. Resuming autofarm...")
-                        sendNotification("Autofarm", "Resumed: Character is alive.")
-                    end
-                end
-            end
-
-            wait(0.5) -- Check health every 0.5 seconds
-        end
-    end)
-end
-
 local function simulateHoldClick(duration)
     local VirtualInputManager = game:GetService("VirtualInputManager")
     VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
@@ -593,8 +558,6 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
-monitorHealthAndPause()
-
 spawn(function()
     while true do
         if toggle and not isPaused then
@@ -630,7 +593,7 @@ spawn(function()
             end
 
             -- Fallback to quest-specific enemies
-            if not targetFound and hasQuest() and not isQuestCompleted() then
+            if not targetFound and not isPaused and hasQuest() and not isQuestCompleted() then
                 for _, enemy in ipairs(aiCharacters:GetChildren()) do
                     if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                         ensureCharacterIsAlive() -- Ensure character is alive before attacking quest enemies
@@ -717,8 +680,6 @@ local function monitorHealth()
     end)
 end
 
-monitorHealth()
-
 -- Respawn monitor to manage character state
 spawn(function()
     while true do
@@ -730,6 +691,8 @@ spawn(function()
         wait(0.5) -- Check character state every 0.5 seconds
     end
 end)
+
+monitorHealth()
 
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent then
