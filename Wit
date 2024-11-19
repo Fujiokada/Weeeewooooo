@@ -27,6 +27,8 @@ local respawnCharacter
 local isCharacterAlive
 local isBossEnemy
 local isBoss
+local enemy
+local attackEnemy
 local isRespawning = false 
 local isPaused = false
 local ensureCharacterIsAlive
