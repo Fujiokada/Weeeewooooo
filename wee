@@ -593,7 +593,6 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
-monitorHealth()
 monitorHealthAndPause()
 
 spawn(function()
@@ -717,6 +716,8 @@ local function monitorHealth()
         end
     end)
 end
+
+monitorHealth()
 
 -- Respawn monitor to manage character state
 spawn(function()
