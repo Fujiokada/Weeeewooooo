@@ -3,29 +3,70 @@ _G.Toggle = true
 local folderPath = workspace.Spawn["Blocktal Grounds"].Instances
 local webhookUrl = "https://discord.com/api/webhooks/1257886779583893585/R7T2QtxC2Q7fQh88awOCAsnAa4O1HUPJJxY-ozRFsFbaeIArfK-d2Ps4sUsHkXS2pzsA"
 
-local function notifyDiscord(itemName)
-    local data = {
-        content = "Collected " .. itemName
-    }
+-- Table to store clicked items
+local clickedItems = {}
 
-    request({
-        Url = webhookUrl,
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = game:GetService("HttpService"):JSONEncode(data)
-    })
+-- Function to get color as a hexadecimal value
+local function getColorHex(color)
+    local r = math.floor(color.R * 255)
+    local g = math.floor(color.G * 255)
+    local b = math.floor(color.B * 255)
+    return r * 65536 + g * 256 + b
 end
 
+-- Discord webhook notifier
+local function notifyDiscord(itemName, itemColor)
+    local colorHex = getColorHex(itemColor)
+    local data = {
+        ["username"] = "Item Collector",
+        ["embeds"] = { {
+            ["title"] = "**Item Collected: " .. itemName .. "**",
+            ["color"] = colorHex,
+            ["footer"] = {
+                ["text"] = "Roblox Item Notifier",
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")  -- UTC time
+        } }
+    }
+
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
+    pcall(function()
+        syn.request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+    end)
+end
+
+-- Function to fire ClickDetectors and send notifications
 local function fireClickDetectors()
     for _, model in ipairs(folderPath:GetChildren()) do
         local clickDetector = model:FindFirstChildOfClass("ClickDetector")
-        if clickDetector then
+        if clickDetector and not clickedItems[model] then
+            -- Mark this item as clicked
+            clickedItems[model] = true
+
+            -- Fire the ClickDetector
             fireclickdetector(clickDetector)
-            notifyDiscord(model.Name)
+
+            -- Get the item's color
+            local itemColor = Color3.new(1, 1, 1) -- Default color (white) if no color information
+            if model:FindFirstChild("Part") and model.Part:IsA("BasePart") then
+                itemColor = model.Part.Color
+            end
+
+            -- Notify Discord
+            notifyDiscord(model.Name, itemColor)
         end
     end
 end
 
+-- Main loop
 spawn(function()
     while true do
         if _G.Toggle then
