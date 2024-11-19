@@ -1,0 +1,81 @@
+-- Full Test Script for Discord Webhook Notification (Executor Version)
+
+-- Your webhook URL
+local webhookUrl = "https://discord.com/api/webhooks/1257886779583893585/R7T2QtxC2Q7fQh88awOCAsnAa4O1HUPJJxY-ozRFsFbaeIArfK-d2Ps4sUsHkXS2pzsA"
+
+-- Function to send a test message
+local function sendTestMessage()
+    local itemName = "Golden Sword"
+    local itemColor = Color3.new(1, 0.84, 0) -- Gold color
+    local colorHex = 0xFFD700 -- Hexadecimal representation of the gold color
+
+    local data = {
+        ["username"] = "Item Collector",
+        ["embeds"] = { {
+            ["title"] = "🎉 **Item Collected!**",
+            ["description"] = "**Item Name:** " .. itemName,
+            ["color"] = colorHex,
+            ["fields"] = {
+                {
+                    ["name"] = "Color",
+                    ["value"] = string.format("`RGB: (%d, %d, %d)`", 
+                        math.floor(itemColor.R * 255), 
+                        math.floor(itemColor.G * 255), 
+                        math.floor(itemColor.B * 255)),
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Timestamp",
+                    ["value"] = "<t:" .. os.time() .. ":R>", -- Discord's relative time format
+                    ["inline"] = true
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Roblox Item Notifier"
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
+        } }
+    }
+
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+
+    -- Check if executor supports HTTP requests
+    if syn and syn.request then
+        -- Using Synapse's request function
+        local response = syn.request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+
+        if response.Success then
+            print("Webhook notification sent successfully!")
+        else
+            warn("Failed to send webhook notification: " .. response.StatusMessage)
+        end
+    elseif http and http.request then
+        -- Using KRNL or other executors that support `http.request`
+        local response = http.request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+
+        if response.Success then
+            print("Webhook notification sent successfully!")
+        else
+            warn("Failed to send webhook notification: " .. response.StatusMessage)
+        end
+    else
+        warn("Executor does not support HTTP requests.")
+    end
+end
+
+-- Call the function to test the webhook
+sendTestMessage()
