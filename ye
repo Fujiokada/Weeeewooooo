@@ -103,9 +103,9 @@ local function sendDiscordNotification(status, details)
     end)
 
     if success then
-        print("Quest notification sent successfully: " .. status)
+        sendNotification("Quest notification sent successfully: " .. status)
     else
-        warn("Failed to send quest notification: " .. tostring(err))
+        sendNotification("Failed to send quest notification: " .. tostring(err))
     end
 end
 
@@ -157,9 +157,9 @@ local function sendBossKillNotification(enemyName, enemyType)
     end)
 
     if success then
-        print("Boss kill notification sent successfully: " .. enemyName)
+        sendNotification("Boss kill notification sent successfully: " .. enemyName)
     else
-        warn("Failed to send boss kill notification: " .. tostring(err))
+        sendNotification("Failed to send boss kill notification: " .. tostring(err))
     end
 end
 
