@@ -394,6 +394,16 @@ local function handleQuest()
     end
 end
 
+-- Helper to check if a boss is still present
+local function isBossPresent()
+    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isBoss(enemy) then
+            return true
+        end
+    end
+    return false
+end
+
 -- Helper function to check if an enemy is a boss
 local function isBoss(enemy)
     if enemy:FindFirstChild("Head") 
@@ -493,16 +503,6 @@ local function activateSkills(currentEnemy)
     if isLowHealth() then return end -- Prevent skill usage if health is low
 
     -- Existing skill logic here
-end
-
--- Helper to check if a boss is still present
-local function isBossPresent()
-    for _, enemy in ipairs(aiCharacters:GetChildren()) do
-        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isBoss(enemy) then
-            return true
-        end
-    end
-    return false
 end
 
 spawn(function()
