@@ -1,7 +1,7 @@
 _G.Toggle = true
 
 local folderPath = workspace.Spawn["Blocktal Grounds"].Instances
-local webhookUrl = "https://discord.com/api/webhooks/1257886779583893585/R7T2QtxC2Q7fQh88awOCAsnAa4O1HUPJJxY-ozRFsFbaeIArfK-d2Ps4sUsHkXS2pzsA"
+local webhookUrl = "https://discord.com/api/webhooks/1308269334568894474/_Hq8z-YbKPGhWJkKfE_rE3cKhkwKEDPcGC9nGLP32YLTAv4WAk3NoBk6KQPo2NqbUCl6"
 
 -- Table to store clicked items
 local clickedItems = {}
