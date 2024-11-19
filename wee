@@ -82,7 +82,7 @@ local function sendDiscordNotification(status, details)
             },
             ["footer"] = {
                 ["text"] = "Roblox Quest Notifier",
-                ["icon_url"] = "https://i.imgur.com/AfFp7pu.png" -- Example icon
+                ["icon_url"] = "https://imgur.com/yqbGJC3" -- Example icon
             },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
@@ -136,7 +136,7 @@ local function sendBossKillNotification(enemyName, enemyType)
             },
             ["footer"] = {
                 ["text"] = "Roblox Boss Kill Notifier",
-                ["icon_url"] = "https://i.imgur.com/AfFp7pu.png" -- Example icon
+                ["icon_url"] = "https://imgur.com/yqbGJC3" -- Example icon
             },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") -- UTC time
         }}
