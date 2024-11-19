@@ -495,6 +495,16 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
+-- Helper to check if a boss is still present
+local function isBossPresent()
+    for _, enemy in ipairs(aiCharacters:GetChildren()) do
+        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isBoss(enemy) then
+            return true
+        end
+    end
+    return false
+end
+
 spawn(function()
     while true do
         if toggle and not isPaused then
@@ -536,6 +546,7 @@ spawn(function()
                         ensureCharacterIsAlive() -- Ensure character is alive before attacking quest enemies
                         for _, targetName in ipairs(targetEnemies) do
                             if enemy.Name:find(targetName) then
+                              if not isBossPresent() then
                                 attackEnemy(enemy)
                                 if isQuestCompleted() then
                                     sendNotification("Quest", "Quest progress completed.")
