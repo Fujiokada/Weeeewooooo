@@ -457,6 +457,44 @@ local function handleQuest()
     end
 end
 
+local function resetScript()
+    print("Character stationary. Resetting script...")
+    sendNotification("Script Reset", "Stationary for 5 mins. Restarting logic.") -- Use your existing function
+    isPaused = true
+    wait(1) -- Allow any cleanup if needed
+    executeMainLogic() -- Restart the main logic
+end
+
+local function monitorPosition()
+    spawn(function()
+        local lastPosition = nil
+        local stationaryTime = 0
+        local maxStationaryTime = 120
+
+        while true do
+            local character = player.Character
+            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+            if humanoidRootPart then
+                local currentPosition = humanoidRootPart.Position
+                if lastPosition and (currentPosition - lastPosition).magnitude < 1 then
+                    stationaryTime = stationaryTime + 1
+                else
+                    stationaryTime = 0
+                    lastPosition = currentPosition
+                end
+
+                if stationaryTime >= maxStationaryTime then
+                    resetScript()
+                    return
+                end
+            end
+
+            wait(1)
+        end
+    end)
+end
+
 -- Helper function to check if an enemy is a boss
 local function isBoss(enemy)
     if enemy:FindFirstChild("Head") 
@@ -557,6 +595,9 @@ local function activateSkills(currentEnemy)
 
     -- Existing skill logic here
 end
+
+local function executeMainLogic()
+    isPaused = false
 
 spawn(function()
     while true do
@@ -692,6 +733,8 @@ spawn(function()
     end
 end)
 
+monitorPosition()
+executeMainLogic()
 monitorHealth()
 
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
