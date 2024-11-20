@@ -1,0 +1,651 @@
+local player = game:GetService("Players").LocalPlayer
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local spawnRemote = replicatedStorage:WaitForChild("ClientRemotes"):WaitForChild("SpawnHandler")
+local aiCharacters = workspace:WaitForChild("AiCharacters")
+local questHolder = player.PlayerGui.GameUI.Quests.QuestHolder
+local targetQuestName = "Defeat Strong Souls"
+local targetEnemies = {"Gravitron Soul", "Time Soul", "Light Soul"}
+local punchToolName = "Katana"
+local skillNames = {"Lion's Slash", "Nadeshiko Field", "Conqueror's Will"}
+local teleportPosition = Vector3.new(232, 3, -703)
+local questNPCPosition = Vector3.new(232, 3, -703)
+local autoClickPosition = Vector2.new(903, 478)
+local floatName = "FloatingPlatform"
+local StarterGui = game:GetService("StarterGui")
+local toggle = false
+
+local lastSkillUse = 0
+local isCharacterAliveFlag = false
+local HealthFlag = true
+local deathNotificationSent = false  
+local combatPauseNotified = false
+local healthCriticalNotified = false
+local Nadeshik = false
+local notifiedEnemies = {}
+local respawnCharacter 
+local isCharacterAlive
+local isRespawning = false 
+local isPaused = false
+local ensureCharacterIsAlive
+local lastPosition = nil
+local lastPositionTime = tick()
+local webhookURL = "https://discord.com/api/webhooks/1308269530098696232/cD5GyDjoZNeNNDRISpdr5uxp3THvdHmmZTFmIusgieWr5xgpK_Y2ySbqie4CucZz8VD0"
+local webhookURL2 = "https://discord.com/api/webhooks/1308269731588870275/Dc9Qkl1HoIsiP08V-7f2BjogqLvNARpjdW0DGGXFLGcYHr_uVO_v_zXZ6sje-i8NAzw-"
+
+local function resetNotifiedEnemies()
+    notifiedEnemies = {}
+end
+
+local function sendNotification(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 2;
+    })
+end
+
+local httpRequest = syn and syn.request or request or http_request or fluxus.request
+if not httpRequest then
+    error("Your executor does not support HTTP requests.")
+end
+
+local function getColorHex(status)
+    if status == "Quest Completed" then
+        return 65280 
+    elseif status == "Quest Retake" then
+        return 16711680 
+    else
+        return 16766720 
+    end
+end
+
+local function sendDiscordNotification(status, details)
+    local data = {
+        ["username"] = "Quest Notifier",
+        ["embeds"] = {{
+            ["title"] = "**Quest Status Update**",
+            ["description"] = details,
+            ["color"] = getColorHex(status),
+            ["fields"] = {
+                {
+                    ["name"] = "Status",
+                    ["value"] = "`" .. status .. "`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Timestamp",
+                    ["value"] = "<t:" .. os.time() .. ":R>", 
+                    ["inline"] = true
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Roblox Quest Notifier",
+                ["icon_url"] = "https://i.imgur.com/yqbGJC3.png" 
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") 
+        }}
+    }
+
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+    
+    local success, err = pcall(function()
+        httpRequest({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+    end)
+
+    if success then
+        sendNotification("Quest notification sent successfully: " .. status)
+    else
+        sendNotification("Failed to send quest notification: " .. tostring(err))
+    end
+end
+
+local function sendBossKillNotification(enemyName, enemyType)
+    local data = {
+        ["username"] = "Boss Kill Notifier",
+        ["embeds"] = {{
+            ["title"] = "**Enemy Defeated: " .. enemyName .. "**",
+            ["description"] = "A powerful foe has been vanquished in the game!",
+            ["color"] = 16766720, 
+            ["fields"] = {
+                {
+                    ["name"] = "Enemy Type",
+                    ["value"] = "`" .. enemyType .. "`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Defeated By",
+                    ["value"] = "`Player: Venqtrix`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Timestamp",
+                    ["value"] = "<t:" .. os.time() .. ":R>", 
+                    ["inline"] = false
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Roblox Boss Kill Notifier",
+                ["icon_url"] = "https://i.imgur.com/yqbGJC3.png" 
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ") 
+        }}
+    }
+
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
+    
+    local success, err = pcall(function()
+        httpRequest({
+            Url = webhookURL2,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+    end)
+
+    if success then
+        sendNotification("Boss kill notification sent successfully: " .. enemyName)
+    else
+        sendNotification("Failed to send boss kill notification: " .. tostring(err))
+    end
+end
+
+local function isCharacterAlive()
+    local character = workspace:FindFirstChild("Venqtrix")
+    if not character then
+        return false
+    end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then
+        return false
+    end
+    
+    local soulFormAttachment = humanoidRootPart:FindFirstChild("SoulForm")
+    return soulFormAttachment == nil 
+end
+
+local function isStuck()
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local currentPosition = character.HumanoidRootPart.Position     
+        if lastPosition and (currentPosition - lastPosition).Magnitude < 1 then
+            if tick() - lastPositionTime > 120 then
+                return true
+            end
+        else
+            lastPosition = currentPosition
+            lastPositionTime = tick()
+        end
+    end
+    return false
+end
+
+local function createFloatingPlatform()
+    local character = player.Character
+    if character and not character:FindFirstChild(floatName) then
+        local Float = Instance.new('Part')
+        Float.Name = floatName
+        Float.Parent = character
+        Float.Transparency = 1
+        Float.Size = Vector3.new(2, 0.2, 1.5)
+        Float.Anchored = true
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if Float.Parent and character:FindFirstChild("HumanoidRootPart") then
+                Float.CFrame = character.HumanoidRootPart.CFrame * CFrame.new(0, -3.1, 0)
+            else
+                Float:Destroy()
+            end
+        end)
+        sendNotification("Platform", "Floating platform created under character.")
+    end
+end
+
+local function respawnCharacter()
+    if isRespawning then return end 
+    isRespawning = true
+    sendNotification("Character Status", "Character is dead, respawning in 2 seconds...")
+    wait(3)
+    spawnRemote:FireServer(1) 
+    wait(3) 
+    while not isCharacterAlive() do
+        wait(0.5)
+    end
+    createFloatingPlatform() 
+    sendNotification("Character Status", "Character respawned successfully.")
+    isRespawning = false 
+end
+
+local function ensureCharacterIsAlive()   
+    while not isCharacterAlive() do
+        wait(0.5) 
+    end
+end
+
+local function simulateHoldClick(duration)
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+    wait(duration)
+    VirtualInputManager:SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+end
+
+local function equipTool(toolName)
+    local tool = player.Backpack:FindFirstChild(toolName)
+    if tool then
+        tool.Parent = player.Character
+    end
+end
+
+local function unequipTool()
+    local character = player.Character
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = player.Backpack
+        end
+    end
+end
+
+local function isNadeshikoFieldActive()
+    for _, part in ipairs(workspace.AtmosphereZones:GetChildren()) do
+        if part:IsA("BasePart") and part.Name:find("NadeshikoField") then
+            return true
+        end
+    end
+    return false
+end
+
+local function isSkillOnCooldown(tool)
+    return tool and tool.Name:match("%d+")
+end
+
+local function activateSkills(currentEnemy)
+    if not currentEnemy or not currentEnemy:FindFirstChild("Humanoid") then return end
+    local humanoid = currentEnemy.Humanoid
+    local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+    local shouldUseNadeshiko = healthPercentage > 30 
+    local shouldUseConqueror = healthPercentage > 30 
+    unequipTool()
+    
+    local conquerorWillTool = player.Backpack:FindFirstChild("Conqueror's Will")
+    if shouldUseConqueror and conquerorWillTool then
+        equipTool("Conqueror's Will")
+        while not conquerorWillTool.Name:match("%d") do  
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+            wait(0.5)
+        end
+        unequipTool()
+    end
+    
+    local lionSlashTool = player.Backpack:FindFirstChild("Lion's Slash")
+    if lionSlashTool then
+        equipTool("Lion's Slash")
+        while not lionSlashTool.Name:match("%d") do  
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+            wait(0.1)
+            game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+            wait(0.5)
+        end
+        unequipTool()
+    end
+    
+    if shouldUseNadeshiko and not isNadeshikoFieldActive() then
+        local nadeshikoTool = player.Backpack:FindFirstChild("Nadeshiko Field")
+        if nadeshikoTool then     
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local humanoidRootPart = character.HumanoidRootPart
+                humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, 50, 0) 
+            end
+            wait(0.5)  
+            equipTool("Nadeshiko Field")
+            local holdDuration = 5 
+            local startTime = tick()  
+            while tick() - startTime < holdDuration do
+                if isNadeshikoFieldActive() then
+                    break
+                end
+                simulateHoldClick(0.1) 
+            end
+            unequipTool()
+        end
+    end 
+    equipTool(punchToolName)
+    lastSkillUse = tick()
+end
+
+local function teleportToPositionIfNadeshikoInactive(position)
+    if not isNadeshikoFieldActive() and not Nadeshik then
+        player.Character:SetPrimaryPartCFrame(CFrame.new(position))
+    else
+        sendNotification("Teleport", "Teleportation blocked due to Nadeshiko Field.")
+        Nadeshik = true
+        if isNadeshikoFieldActive() then
+            Nadeshik = false
+        end
+    end
+end
+
+local function hasQuest()   
+    local quest = questHolder:FindFirstChild("Quest")
+    if quest and quest:FindFirstChild("QuestName") then
+        return quest.QuestName.ContentText == targetQuestName
+    end
+    return false
+end
+
+local function isQuestCompleted()  
+    local questProgress = player.PlayerGui.GameUI.Quests.InformationFrame.ScrollingFrame:FindFirstChild("QuestPartProgress")
+    return questProgress and questProgress.Progress.ContentText == "3/3"
+end
+
+local function isLowHealth()
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        local humanoid = player.Character.Humanoid
+        return humanoid.Health <= humanoid.MaxHealth * 0.2
+    end
+    return false
+end
+
+local function handleQuest()
+    ensureCharacterIsAlive() 
+    while isNadeshikoFieldActive() do
+        wait(0.5) 
+    end
+
+    if hasQuest() then
+        if isQuestCompleted() then
+            sendNotification("Quest", "Quest completed. Turning in.")
+            teleportToPositionIfNadeshikoInactive(questNPCPosition)
+            wait(1)
+            local npc = workspace.NPCs:FindFirstChild("Agor")
+            if npc then
+                local prompt = npc:FindFirstChild("ProximityPrompt")
+                if prompt then
+                    fireproximityprompt(prompt)
+                    for i = 1, 2 do
+                        ensureCharacterIsAlive() 
+                        if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                            replicatedStorage.ClientRemotes.DialogueHandler:FireServer(2)
+                            wait(1)
+                        else
+                            sendNotification("Error", "DialogueHandler not found!")
+                            return
+                        end
+                    end
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    wait(1)
+                    replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    if isQuestCompleted() then
+                        sendNotification("Quest", "Quest successfully completed.")
+                        sendDiscordNotification("Quest Completed", "The quest 'Defeat Strong Souls' was completed by Venqtrix.")
+                    end
+                else
+                    sendNotification("Error", "Proximity prompt for NPC not found!")
+                end
+            else
+                sendNotification("Error", "Quest NPC not found in workspace!")
+            end
+        end
+    else
+        sendNotification("Quest", "No active quest. Starting quest.")
+        teleportToPositionIfNadeshikoInactive(teleportPosition)
+        wait(1)
+        local npc = workspace.NPCs:FindFirstChild("Agor")
+        if npc then
+            local prompt = npc:FindFirstChild("ProximityPrompt")
+            if prompt then
+                fireproximityprompt(prompt)
+                for _ = 1, 4 do
+                    ensureCharacterIsAlive() 
+                    if replicatedStorage.ClientRemotes:FindFirstChild("DialogueHandler") then
+                        replicatedStorage.ClientRemotes.DialogueHandler:FireServer(1)
+                    else
+                        sendNotification("Error", "DialogueHandler not found!")
+                        return
+                    end
+                    wait(1)
+                end
+                if hasQuest() then
+                    sendNotification("Quest", "Quest successfully taken.")
+                    sendDiscordNotification("Quest Taken", "Venqtrix has started the quest 'Defeat Strong Souls'.")
+                end
+            else
+                sendNotification("Error", "Proximity prompt for NPC not found!")
+            end
+        else
+            sendNotification("Error", "Quest NPC not found in workspace!")
+        end
+    end
+end
+
+local function isBoss(enemy)
+    if enemy:FindFirstChild("Head") 
+       and enemy.Head:FindFirstChild("billboardAtt")
+       and enemy.Head.billboardAtt:FindFirstChild("BillboardGui")
+       and enemy.Head.billboardAtt.BillboardGui:FindFirstChild("TextLabel") then
+        local textLabel = enemy.Head.billboardAtt.BillboardGui.TextLabel     
+        if textLabel.Text:find("Boss") then
+            return true
+        end
+    end
+    return false
+end
+
+local function isSpecialEnemy(enemy)
+    local specialEnemies = {"Demon", "Angel"}
+    for _, specialName in ipairs(specialEnemies) do        
+        if enemy.Name:find(specialName) then
+            return true
+        end
+    end
+    return false
+end
+
+local function attackEnemy(enemy)
+    if isLowHealth() then return end   
+    local isEnemyBoss = isBoss(enemy)
+    local isEnemySpecial = isSpecialEnemy(enemy)   
+    if not notifiedEnemies[enemy] then
+        if isEnemyBoss then
+            sendNotification("Combat", "Engaging boss: " .. enemy.Name)
+        elseif isEnemySpecial then
+            sendNotification("Combat", "Engaging special enemy: " .. enemy.Name)
+        else
+            sendNotification("Combat", "Attacking enemy: " .. enemy.Name)
+        end
+        notifiedEnemies[enemy] = true 
+    end
+    
+    while enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and isCharacterAlive() and HealthFlag and not isLowHealth() and not isNadeshikoFieldActive() do     
+        if not isCharacterAlive() then
+            respawnCharacter()
+            return 
+        end
+        local enemyPos = enemy.PrimaryPart.Position - enemy.PrimaryPart.CFrame.LookVector * 7
+        player.Character:SetPrimaryPartCFrame(CFrame.new(enemyPos, enemy.PrimaryPart.Position))     
+        if tick() - lastSkillUse > 5 then
+            activateSkills(enemy) 
+        end
+
+        equipTool(punchToolName)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, true, game, 0)
+        wait(0.1)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(autoClickPosition.X, autoClickPosition.Y, 0, false, game, 0)
+        wait(0.1)
+    end
+    
+    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health <= 0 then
+        if isEnemyBoss then
+            sendNotification("Combat", "Boss defeated: " .. enemy.Name)
+            sendBossKillNotification("Boss Defeated", "A boss named '" .. enemy.Name .. "' was defeated by Venqtrix.")
+        elseif isEnemySpecial then
+            sendNotification("Combat", "Special enemy defeated: " .. enemy.Name)
+            sendBossKillNotification("Special Enemy Defeated", "A special enemy named '" .. enemy.Name .. "' was defeated by Venqtrix.")
+        end
+        notifiedEnemies[enemy] = nil 
+    end
+    
+    if isNadeshikoFieldActive() or isLowHealth() then
+        if not combatPauseNotified then
+            sendNotification("Combat", "Combat paused due to Nadeshiko Field activation or low health.")
+            combatPauseNotified = true 
+        end
+    else
+        combatPauseNotified = false 
+    end
+end
+
+local function activateSkills(currentEnemy)
+    if isLowHealth() then return end     
+end
+
+spawn(function()
+    while true do
+        if toggle and not isPaused then
+            ensureCharacterIsAlive()     
+            handleQuest()
+            
+            local targetFound = false
+            local bossEnemy = nil
+            local specialEnemy = nil
+            
+            for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                    if isBoss(enemy) then
+                        bossEnemy = enemy
+                        break 
+                    elseif isSpecialEnemy(enemy) then
+                        specialEnemy = enemy
+                    end
+                end
+            end
+            
+            if bossEnemy then
+                attackEnemy(bossEnemy)
+                targetFound = true
+            elseif specialEnemy then
+                attackEnemy(specialEnemy)
+                targetFound = true
+            end
+            
+            if not targetFound and not isPaused and hasQuest() and not isQuestCompleted() then
+                for _, enemy in ipairs(aiCharacters:GetChildren()) do
+                    if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        ensureCharacterIsAlive() 
+                        for _, targetName in ipairs(targetEnemies) do
+                            if enemy.Name:find(targetName) then
+                                attackEnemy(enemy)
+                                if isQuestCompleted() then
+                                    sendNotification("Quest", "Quest progress completed.")
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        wait(0.1) 
+    end
+end)
+
+spawn(function()
+    while true do
+        if toggle and not isPaused then
+            if isStuck() then
+                sendNotification("Anti-Stuck", "Character stuck. Pausing and resuming script.")                          
+                isPaused = true
+                wait(1) 
+                isPaused = false
+                lastPosition = nil
+                lastPositionTime = tick()
+            end
+        end
+        wait(1) 
+    end
+end)
+
+local function monitorHealth()
+    spawn(function()
+        while true do
+            if toggle and HealthFlag and not isPaused then
+                local character = player.Character
+                if character and character:FindFirstChild("Humanoid") then
+                    local humanoid = character.Humanoid
+                    local healthPercentage = (humanoid.Health / humanoid.MaxHealth) * 100
+                    if healthPercentage <= 20 then                  
+                        if not isCharacterAlive() or isRespawning then
+                            wait(0.5) 
+                        else                      
+                            isPaused = true                      
+                            local function isFieldActive()
+                                for _, part in ipairs(workspace.AtmosphereZones:GetChildren()) do
+                                    if part:IsA("BasePart") and part.Name:find("NadeshikoField") then
+                                        return true
+                                    end
+                                end
+                                return false
+                            end
+
+                            while isFieldActive() do
+                                wait(0.5) 
+                            end
+
+                            if not healthCriticalNotified then
+                                sendNotification("Health Monitor", "Health critical. Teleporting before reset.")
+                                healthCriticalNotified = true                       
+                                local safePosition = Vector3.new(-35, 277, 963)
+                                for i = 1, 5 do
+                                    if character:FindFirstChild("HumanoidRootPart") then
+                                        character.HumanoidRootPart.CFrame = CFrame.new(safePosition)
+                                        sendNotification("Health Monitor", "Teleported to safe position (" .. i .. "/5).")
+                                    end
+                                    wait(0.5) 
+                                end                                
+                                humanoid.Health = 0 
+                                ensureCharacterIsAlive()
+                            end                   
+                            isPaused = false
+                        end
+                    else
+                        healthCriticalNotified = false 
+                    end
+                end
+            end
+            wait(0.5) 
+        end
+    end)
+end
+
+spawn(function()
+    while true do
+        if not isCharacterAlive() and not isRespawning then
+            isPaused = true 
+            respawnCharacter()
+            isPaused = false 
+        end
+        wait(0.5) 
+    end
+end)
+
+monitorHealth()
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.T then
+            toggle = not toggle
+            sendNotification("Toggle", "Auto-farming " .. (toggle and "enabled" or "disabled"))
+        end
+    end
+end)
