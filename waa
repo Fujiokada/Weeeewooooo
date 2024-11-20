@@ -28,6 +28,8 @@ local isCharacterAlive
 local isRespawning = false 
 local isPaused = false
 local ensureCharacterIsAlive
+local lastPosition = nil
+local lastPositionTime = tick()
 local webhookURL = "https://discord.com/api/webhooks/1308269530098696232/cD5GyDjoZNeNNDRISpdr5uxp3THvdHmmZTFmIusgieWr5xgpK_Y2ySbqie4CucZz8VD0"
 local webhookURL2 = "https://discord.com/api/webhooks/1308269731588870275/Dc9Qkl1HoIsiP08V-7f2BjogqLvNARpjdW0DGGXFLGcYHr_uVO_v_zXZ6sje-i8NAzw-"
 
@@ -182,6 +184,24 @@ local function isCharacterAlive()
     return soulFormAttachment == nil -- If SoulForm exists, character is "dead"; otherwise, "alive"
 end
 
+-- Position tracking function (add here)
+local function isStuck()
+    local character = player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local currentPosition = character.HumanoidRootPart.Position
+
+        -- Compare current position with the last recorded position
+        if lastPosition and (currentPosition - lastPosition).Magnitude < 1 then
+            if tick() - lastPositionTime > 120 then
+                return true
+            end
+        else
+            lastPosition = currentPosition
+            lastPositionTime = tick()
+        end
+    end
+    return false
+end
 
 -- Create floating platform under the character
 local function createFloatingPlatform()
@@ -457,44 +477,6 @@ local function handleQuest()
     end
 end
 
-local function resetScript()
-    print("Character stationary. Resetting script...")
-    sendNotification("Script Reset", "Stationary for 5 mins. Restarting logic.") -- Use your existing function
-    isPaused = true
-    wait(1) -- Allow any cleanup if needed
-    executeMainLogic() -- Restart the main logic
-end
-
-local function monitorPosition()
-    spawn(function()
-        local lastPosition = nil
-        local stationaryTime = 0
-        local maxStationaryTime = 120
-
-        while true do
-            local character = player.Character
-            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-
-            if humanoidRootPart then
-                local currentPosition = humanoidRootPart.Position
-                if lastPosition and (currentPosition - lastPosition).magnitude < 1 then
-                    stationaryTime = stationaryTime + 1
-                else
-                    stationaryTime = 0
-                    lastPosition = currentPosition
-                end
-
-                if stationaryTime >= maxStationaryTime then
-                    resetScript()
-                    return
-                end
-            end
-
-            wait(1)
-        end
-    end)
-end
-
 -- Helper function to check if an enemy is a boss
 local function isBoss(enemy)
     if enemy:FindFirstChild("Head") 
@@ -596,9 +578,6 @@ local function activateSkills(currentEnemy)
     -- Existing skill logic here
 end
 
-local function executeMainLogic()
-    isPaused = false
-
 spawn(function()
     while true do
         if toggle and not isPaused then
@@ -652,6 +631,27 @@ spawn(function()
             end
         end
         wait(0.1) -- Small delay to prevent CPU overload
+    end
+end)
+
+-- Independent position monitoring loop
+spawn(function()
+    while true do
+        if toggle and not isPaused then
+            if isStuck() then
+                sendNotification("Anti-Stuck", "Character stuck. Pausing and resuming script.")
+                
+                -- Pause and resume logic
+                isPaused = true
+                wait(1) -- Short pause to allow any script-dependent resets
+                isPaused = false
+
+                -- Reset position tracking after intervention
+                lastPosition = nil
+                lastPositionTime = tick()
+            end
+        end
+        wait(1) -- Check every second
     end
 end)
 
@@ -733,8 +733,6 @@ spawn(function()
     end
 end)
 
-monitorPosition()
-executeMainLogic()
 monitorHealth()
 
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessedEvent)
