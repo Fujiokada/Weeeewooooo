@@ -1,101 +1,92 @@
--- Services and Player Setup
+-- Autofarm and Auto Spinner Script
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
+local SpinEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SpinEvent")
+local SkillEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SkillEvent")
 
--- Remotes
-local skillEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SkillEvent")
-local spinEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SpinEvent")
+-- Configurable Variables
+local toggleKey = Enum.KeyCode.P
+local levelThreshold = 10
+local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction", "Arcane Essence"}
+local autofarmEnabled = false
+local spinnerEnabled = true
 
--- Farming Variables
-local farming = true
-local spinning = true
-
--- Desirable Essences
-local desiredEssences = {
-    ["Cosmic Essence"] = true,
-    ["Spatial Essence"] = true,
-    ["Essence of Destruction"] = true,
-    ["Arcane Essence"] = true
-}
-
--- Helper Function to Fire SkillEvent
-local function fireSkill(skill, timestamp, extra)
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local rootPart = character.HumanoidRootPart
-        local position = rootPart.Position
-        local rotation = rootPart.CFrame
-        local args = {skill, position, rotation, timestamp, extra}
-        skillEvent:FireServer(unpack(args))
-    else
-        warn("Character or HumanoidRootPart not found!")
-    end
-end
-
--- Farming Logic
-local function autoFarm()
-    while farming do
-        task.wait(0.5) -- Prevents excessive load on the game
-        
-        -- Fire skill events dynamically based on current position
-        fireSkill("E", os.time(), "e1")
-        fireSkill("R", os.time(), "e1")
-        fireSkill("F", os.time(), "e1")
-        fireSkill("E", os.time(), "e2")
-        fireSkill("R", os.time(), "e2")
-        fireSkill("F", os.time(), "e2")
-        
-        -- Check Level
-        local level = LocalPlayer:FindFirstChild("Level")
-        if level and level.Value >= 10 then
-            spinning = true
-            break
+-- Function to check for desired essences
+local function hasDesiredEssence()
+    for _, essenceName in ipairs(desiredEssences) do
+        if LocalPlayer:FindFirstChild("Essences") and LocalPlayer.Essences:FindFirstChild("Essence1") and
+            LocalPlayer.Essences.Essence1.Value == essenceName then
+            return true
         end
     end
+    return false
 end
 
--- Spinner Logic
-local function autoSpin()
-    while spinning do
-        task.wait(0.5) -- Prevents excessive load on the game
-        
-        -- Fire spin remote
-        spinEvent:FireServer("e1")
-        
-        -- Check Spin Result
-        local essences = LocalPlayer:FindFirstChild("Essences")
-        if essences then
-            for _, essence in pairs(essences:GetChildren()) do
-                if desiredEssences[essence.Name] then
-                    print("Desired essence obtained:", essence.Name)
-                    spinning = false
-                    break
+-- Function to fire skill events dynamically
+local function fireSkill(skill, essenceType)
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local position = character.HumanoidRootPart.Position
+    local rotation = character.HumanoidRootPart.CFrame
+
+    local args = {
+        skill,
+        position,
+        rotation,
+        os.clock(),
+        essenceType
+    }
+    SkillEvent:FireServer(unpack(args))
+end
+
+-- Function to perform the autofarm loop
+local function autofarmLoop()
+    while autofarmEnabled do
+        -- Check Level
+        if LocalPlayer:FindFirstChild("Level") and LocalPlayer.Level.Value >= levelThreshold then
+            if spinnerEnabled then
+                -- Spin for Essence
+                SpinEvent:FireServer("e1")
+                wait(1) -- Wait for spin result
+
+                -- Check for desired essence
+                if hasDesiredEssence() then
+                    spinnerEnabled = false -- Stop spinner
                 end
             end
-        end
-        
-        -- Break the loop if spinning stops
-        if not spinning then
-            break
+        else
+            -- Fire "e1" skills
+            fireSkill("E", "e1")
+            wait(0.5)
+            fireSkill("R", "e1")
+            wait(0.5)
+            fireSkill("F", "e1")
+            wait(1)
+
+            -- Fire "e2" skills
+            fireSkill("E", "e2")
+            wait(0.5)
+            fireSkill("R", "e2")
+            wait(0.5)
+            fireSkill("F", "e2")
+            wait(1) -- Adjust delay as needed
         end
     end
 end
 
--- Main Loop
-task.spawn(function()
-    while true do
-        if farming then
-            autoFarm()
-        end
-        
-        if spinning then
-            autoSpin()
-        end
-        
-        -- Reset farming after spin
-        if not spinning then
-            farming = true
+-- Toggle Autofarm on/off
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == toggleKey then
+        autofarmEnabled = not autofarmEnabled
+        if autofarmEnabled then
+            print("Autofarm Enabled")
+            spinnerEnabled = true
+            spawn(autofarmLoop)
+        else
+            print("Autofarm Disabled")
         end
     end
 end)
+
+print("Autofarm script loaded. Press 'P' to toggle on/off.")
