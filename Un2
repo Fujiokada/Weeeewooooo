@@ -113,19 +113,19 @@ local function autofarmLoop()
         else
             -- Fire "e1" skills
             fireSkill("E", "e1")
-            wait(0.5)
+            wait(0.1)
             fireSkill("R", "e1")
-            wait(0.5)
+            wait(0.1)
             fireSkill("F", "e1")
-            wait(1)
+            wait(0.1)
 
             -- Fire "e2" skills
             fireSkill("E", "e2")
-            wait(0.5)
+            wait(0.1)
             fireSkill("R", "e2")
-            wait(0.5)
+            wait(0.1)
             fireSkill("F", "e2")
-            wait(1) -- Adjust delay as needed
+            wait(0.1) -- Adjust delay as needed
         end
     end
 end
