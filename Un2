@@ -10,7 +10,7 @@ local SkillEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Skill
 local webhookURL = "https://discord.com/api/webhooks/1310266194800017418/woemBAEypMRUrvUfGC6us0AxYOtPP63jhAO6OILj0XLaVIAj8ycHCJ1bdGvqjmLaUmTp"
 local toggleKey = Enum.KeyCode.P
 local levelThreshold = 5
-local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction", "Arcane Essence"}
+local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction"}
 local autofarmEnabled = false
 local spinnerEnabled = true
 
