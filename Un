@@ -1,7 +1,8 @@
--- Autofarm and Auto Spinner Script with Webhook and Integrated Safe Place
+-- Autofarm and Auto Spinner Script with Continuous Safe Place and Webhook
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local SpinEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SpinEvent")
 local SkillEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SkillEvent")
@@ -13,7 +14,7 @@ local levelThreshold = 10
 local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction", "Arcane Essence"}
 local autofarmEnabled = false
 local spinnerEnabled = true
-local safePosition = Vector3.new(-5568, 7034, -12900)
+local safePlace = Vector3.new(-5568, 7034, -12900)
 
 -- Function to send webhook notification
 local function sendEssenceNotification(essence, isDesired)
@@ -80,31 +81,51 @@ local function hasDesiredEssence()
     return false
 end
 
--- Function to teleport and freeze character in safe place
-local function teleportToSafePlace()
+-- Function to fire skill events dynamically
+local function fireSkill(skill, essenceType)
     local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local rootPart = character:WaitForChild("HumanoidRootPart")
+    local position = character.HumanoidRootPart.Position
+    local rotation = character.HumanoidRootPart.CFrame
 
-    -- Freeze the character by setting Anchored to true
-    rootPart.CFrame = CFrame.new(safePosition)
-    rootPart.Anchored = true
-    print("Teleported to Safe Place and Frozen.")
+    local args = {
+        skill,
+        position,
+        rotation,
+        os.clock(),
+        essenceType
+    }
+    SkillEvent:FireServer(unpack(args))
 end
 
--- Function to unfreeze character when disabling autofarm
-local function unfreezeCharacter()
+-- Function to teleport and anchor the character continuously
+local function maintainSafePlace()
     local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local rootPart = character:WaitForChild("HumanoidRootPart")
+
+    -- Check position and anchor status continuously
+    while autofarmEnabled do
+        if (rootPart.Position - safePlace).Magnitude > 5 then
+            rootPart.CFrame = CFrame.new(safePlace) -- Teleport to safe place
+            print("Teleported to safe place.")
+        end
+
+        if not rootPart.Anchored then
+            rootPart.Anchored = true -- Anchor the character
+            print("Character anchored.")
+        end
+
+        wait(1) -- Adjust frequency as needed
+    end
+
+    -- Unanchor when autofarm is disabled
     rootPart.Anchored = false
-    print("Exited Safe Place and Unfrozen.")
+    print("Character unanchored.")
 end
 
 -- Function to perform the autofarm loop
 local function autofarmLoop()
+    spawn(maintainSafePlace) -- Continuously enforce safe place
     while autofarmEnabled do
-        -- Teleport to safe place and freeze
-        teleportToSafePlace()
-
         -- Check Level
         if LocalPlayer:FindFirstChild("Level") and LocalPlayer.Level.Value >= levelThreshold then
             if spinnerEnabled then
@@ -135,9 +156,6 @@ local function autofarmLoop()
             wait(1) -- Adjust delay as needed
         end
     end
-
-    -- Unfreeze character when autofarm stops
-    unfreezeCharacter()
 end
 
 -- Toggle Autofarm on/off
@@ -155,4 +173,4 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, processed
     end
 end)
 
-print("Autofarm script loaded with safe place. Press 'P' to toggle on/off.")
+print("Autofarm script loaded with continuous safe place enforcement and webhook notifications. Press 'P' to toggle on/off.")
