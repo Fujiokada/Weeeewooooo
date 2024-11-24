@@ -1,0 +1,108 @@
+-- Auto Spinner Script with Webhook
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local SpinEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SpinEvent")
+
+-- Configurable Variables
+local webhookURL = "https://discord.com/api/webhooks/1310266194800017418/woemBAEypMRUrvUfGC6us0AxYOtPP63jhAO6OILj0XLaVIAj8ycHCJ1bdGvqjmLaUmTp"
+local toggleKey = Enum.KeyCode.P
+local spinnerEnabled = false
+local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction", "Arcane Essence"}
+
+-- Function to send webhook notifications
+local function sendEssenceNotification(essence, isDesired)
+    local data = {
+        ["username"] = "Essence Notifier",
+        ["embeds"] = {{
+            ["title"] = isDesired and "**Desired Essence Rolled!**" or "**Essence Rolled**",
+            ["description"] = "Essence: `" .. essence .. "`",
+            ["color"] = isDesired and 65280 or 16766720, -- Green for desired, orange otherwise
+            ["fields"] = {
+                {
+                    ["name"] = "Status",
+                    ["value"] = isDesired and "`Success`" or "`Notification`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Timestamp",
+                    ["value"] = "<t:" .. os.time() .. ":R>",
+                    ["inline"] = true
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Roblox Essence Notifier",
+                ["icon_url"] = "https://i.imgur.com/yqbGJC3.png"
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+
+    local jsonData = HttpService:JSONEncode(data)
+    local httpRequest = syn and syn.request or request or http_request or fluxus.request
+
+    if not httpRequest then
+        warn("HTTP request not supported on this executor.")
+        return
+    end
+
+    local success, err = pcall(function()
+        httpRequest({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = jsonData
+        })
+    end)
+
+    if not success then
+        warn("Failed to send webhook: " .. tostring(err))
+    end
+end
+
+-- Function to check for desired essences
+local function hasDesiredEssence()
+    if LocalPlayer:FindFirstChild("Essences") and LocalPlayer.Essences:FindFirstChild("Essence1") then
+        local currentEssence = LocalPlayer.Essences.Essence1.Value
+        for _, essenceName in ipairs(desiredEssences) do
+            if currentEssence == essenceName then
+                sendEssenceNotification(currentEssence, true)
+                return true
+            end
+        end
+        sendEssenceNotification(currentEssence, false)
+    end
+    return false
+end
+
+-- Function to perform the auto spinner loop
+local function spinnerLoop()
+    while spinnerEnabled do
+        -- Spin for Essence
+        SpinEvent:FireServer("e1")
+        wait(0.2) -- Wait for the spin result
+
+        -- Check for desired essence
+        if hasDesiredEssence() then
+            spinnerEnabled = false -- Stop spinner when desired essence is found
+            print("Desired essence found! Spinner stopped.")
+        end
+    end
+end
+
+-- Toggle Auto Spinner on/off
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == toggleKey then
+        spinnerEnabled = not spinnerEnabled
+        if spinnerEnabled then
+            print("Auto Spinner Enabled")
+            spawn(spinnerLoop)
+        else
+            print("Auto Spinner Disabled")
+        end
+    end
+end)
+
+print("Auto Spinner script loaded. Press 'P' to toggle on/off.")
