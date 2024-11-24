@@ -1,47 +1,110 @@
--- Autofarm and Auto Spinner Script
+-- Autofarm and Auto Spinner Script with Webhook and Integrated Safe Place
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local SpinEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SpinEvent")
 local SkillEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SkillEvent")
 
 -- Configurable Variables
+local webhookURL = "https://discord.com/api/webhooks/1310266194800017418/woemBAEypMRUrvUfGC6us0AxYOtPP63jhAO6OILj0XLaVIAj8ycHCJ1bdGvqjmLaUmTp"
 local toggleKey = Enum.KeyCode.P
 local levelThreshold = 10
 local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction", "Arcane Essence"}
 local autofarmEnabled = false
 local spinnerEnabled = true
+local safePosition = Vector3.new(-5568, 7034, -12900)
+
+-- Function to send webhook notification
+local function sendEssenceNotification(essence, isDesired)
+    local data = {
+        ["username"] = "Essence Notifier",
+        ["embeds"] = {{
+            ["title"] = isDesired and "**Desired Essence Rolled!**" or "**Essence Rolled**",
+            ["description"] = "Essence: `" .. essence .. "`",
+            ["color"] = isDesired and 65280 or 16766720, -- Green for desired, orange otherwise
+            ["fields"] = {
+                {
+                    ["name"] = "Status",
+                    ["value"] = isDesired and "`Success`" or "`Notification`",
+                    ["inline"] = true
+                },
+                {
+                    ["name"] = "Timestamp",
+                    ["value"] = "<t:" .. os.time() .. ":R>",
+                    ["inline"] = true
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Roblox Essence Notifier",
+                ["icon_url"] = "https://i.imgur.com/yqbGJC3.png"
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+
+    local jsonData = HttpService:JSONEncode(data)
+    local httpRequest = syn and syn.request or request or http_request or fluxus.request
+
+    if not httpRequest then
+        warn("HTTP request not supported on this executor.")
+        return
+    end
+
+    local success, err = pcall(function()
+        httpRequest({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = jsonData
+        })
+    end)
+
+    if not success then
+        warn("Failed to send webhook: " .. tostring(err))
+    end
+end
 
 -- Function to check for desired essences
 local function hasDesiredEssence()
-    for _, essenceName in ipairs(desiredEssences) do
-        if LocalPlayer:FindFirstChild("Essences") and LocalPlayer.Essences:FindFirstChild("Essence1") and
-            LocalPlayer.Essences.Essence1.Value == essenceName then
-            return true
+    if LocalPlayer:FindFirstChild("Essences") and LocalPlayer.Essences:FindFirstChild("Essence1") then
+        local currentEssence = LocalPlayer.Essences.Essence1.Value
+        for _, essenceName in ipairs(desiredEssences) do
+            if currentEssence == essenceName then
+                sendEssenceNotification(currentEssence, true)
+                return true
+            end
         end
+        sendEssenceNotification(currentEssence, false)
     end
     return false
 end
 
--- Function to fire skill events dynamically
-local function fireSkill(skill, essenceType)
+-- Function to teleport and freeze character in safe place
+local function teleportToSafePlace()
     local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local position = character.HumanoidRootPart.Position
-    local rotation = character.HumanoidRootPart.CFrame
+    local rootPart = character:WaitForChild("HumanoidRootPart")
 
-    local args = {
-        skill,
-        position,
-        rotation,
-        os.clock(),
-        essenceType
-    }
-    SkillEvent:FireServer(unpack(args))
+    -- Freeze the character by setting Anchored to true
+    rootPart.CFrame = CFrame.new(safePosition)
+    rootPart.Anchored = true
+    print("Teleported to Safe Place and Frozen.")
+end
+
+-- Function to unfreeze character when disabling autofarm
+local function unfreezeCharacter()
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+    rootPart.Anchored = false
+    print("Exited Safe Place and Unfrozen.")
 end
 
 -- Function to perform the autofarm loop
 local function autofarmLoop()
     while autofarmEnabled do
+        -- Teleport to safe place and freeze
+        teleportToSafePlace()
+
         -- Check Level
         if LocalPlayer:FindFirstChild("Level") and LocalPlayer.Level.Value >= levelThreshold then
             if spinnerEnabled then
@@ -57,21 +120,24 @@ local function autofarmLoop()
         else
             -- Fire "e1" skills
             fireSkill("E", "e1")
-            wait(0.1)
+            wait(0.5)
             fireSkill("R", "e1")
-            wait(0.1)
+            wait(0.5)
             fireSkill("F", "e1")
-            wait(0.1)
+            wait(1)
 
             -- Fire "e2" skills
             fireSkill("E", "e2")
-            wait(0.1)
+            wait(0.5)
             fireSkill("R", "e2")
-            wait(0.1)
+            wait(0.5)
             fireSkill("F", "e2")
-            wait(0.1) -- Adjust delay as needed
+            wait(1) -- Adjust delay as needed
         end
     end
+
+    -- Unfreeze character when autofarm stops
+    unfreezeCharacter()
 end
 
 -- Toggle Autofarm on/off
@@ -89,4 +155,4 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, processed
     end
 end)
 
-print("Autofarm script loaded. Press 'P' to toggle on/off.")
+print("Autofarm script loaded with safe place. Press 'P' to toggle on/off.")
