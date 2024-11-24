@@ -1,133 +1,91 @@
 -- Variables
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+local player = game.Players.LocalPlayer
+local spawnFolder = workspace:WaitForChild("SpawnedEssences") -- Adjust folder name if needed
+local gui = Instance.new("ScreenGui")
+local mainFrame = Instance.new("Frame")
+local toggleKey = Enum.KeyCode.T
+local minimized = false
 
--- Folder to monitor
-local folder = workspace:FindFirstChild("SpawnedEssences")
-if not folder then
-    folder = Instance.new("Folder", workspace)
-    folder.Name = "SpawnedEssences"
-end
+-- Setup GUI
+gui.Name = "EssenceTracker"
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Player reference
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-
--- Create GUI
-local screenGui = Instance.new("ScreenGui", game.CoreGui)
-screenGui.Name = "EssenceTracker"
-
-local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+mainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BorderSizePixel = 0
-mainFrame.Visible = false
-mainFrame.Draggable = true
 mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = gui
 
-local uiCorner = Instance.new("UICorner", mainFrame)
-uiCorner.CornerRadius = UDim.new(0, 10)
-
-local title = Instance.new("TextLabel", mainFrame)
-title.Text = "Essence Tracker"
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, 0, 0, 50)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Text = "Spawned Essences"
 title.TextSize = 18
-title.BorderSizePixel = 0
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.BackgroundTransparency = 1
+title.Parent = mainFrame
 
-local essenceList = Instance.new("ScrollingFrame", mainFrame)
-essenceList.Size = UDim2.new(1, 0, 1, -40)
-essenceList.Position = UDim2.new(0, 0, 0, 40)
-essenceList.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-essenceList.BorderSizePixel = 0
-essenceList.CanvasSize = UDim2.new(0, 0, 0, 0)
-essenceList.ScrollBarThickness = 5
-essenceList.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+local listFrame = Instance.new("ScrollingFrame")
+listFrame.Name = "ListFrame"
+listFrame.Size = UDim2.new(1, 0, 1, -50)
+listFrame.Position = UDim2.new(0, 0, 0, 50)
+listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+listFrame.ScrollBarThickness = 8
+listFrame.BackgroundTransparency = 1
+listFrame.Parent = mainFrame
 
-local minimizeButton = Instance.new("TextButton", mainFrame)
-minimizeButton.Text = "_"
-minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-minimizeButton.Position = UDim2.new(1, -35, 0, 5)
-minimizeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-minimizeButton.Font = Enum.Font.GothamBold
-minimizeButton.TextSize = 18
-minimizeButton.BorderSizePixel = 0
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Parent = listFrame
+uiListLayout.Padding = UDim.new(0, 5)
 
-local uiCornerMinimize = Instance.new("UICorner", minimizeButton)
-uiCornerMinimize.CornerRadius = UDim.new(0, 5)
-
--- Functions
-local function updateEssenceList()
-    -- Clear the list
-    for _, child in ipairs(essenceList:GetChildren()) do
-        if child:IsA("Frame") then
+-- Helper Functions
+local function updateList()
+    for _, child in pairs(listFrame:GetChildren()) do
+        if child:IsA("TextButton") then
             child:Destroy()
         end
     end
-    
-    -- Populate list with new entries
-    local yOffset = 5
-    for _, part in ipairs(folder:GetChildren()) do
-        if part:IsA("BasePart") then
-            local itemFrame = Instance.new("Frame", essenceList)
-            itemFrame.Size = UDim2.new(1, -10, 0, 40)
-            itemFrame.Position = UDim2.new(0, 5, 0, yOffset)
-            itemFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-            itemFrame.BorderSizePixel = 0
-            
-            local itemLabel = Instance.new("TextLabel", itemFrame)
-            itemLabel.Text = part.Name
-            itemLabel.Size = UDim2.new(0.7, 0, 1, 0)
-            itemLabel.BackgroundTransparency = 1
-            itemLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-            itemLabel.Font = Enum.Font.Gotham
-            itemLabel.TextSize = 14
-            
-            local teleportButton = Instance.new("TextButton", itemFrame)
-            teleportButton.Text = "Teleport"
-            teleportButton.Size = UDim2.new(0.3, 0, 1, 0)
-            teleportButton.Position = UDim2.new(0.7, 0, 0, 0)
-            teleportButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-            teleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            teleportButton.Font = Enum.Font.GothamBold
-            teleportButton.TextSize = 14
-            
-            -- Add teleport functionality
-            teleportButton.MouseButton1Click:Connect(function()
-                humanoidRootPart.CFrame = part.CFrame
+
+    for _, essence in pairs(spawnFolder:GetChildren()) do
+        if essence:IsA("BasePart") then
+            local button = Instance.new("TextButton")
+            button.Size = UDim2.new(1, -10, 0, 30)
+            button.Text = "Teleport to " .. essence.Name
+            button.TextSize = 16
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            button.BorderSizePixel = 0
+            button.MouseButton1Click:Connect(function()
+                player.Character:SetPrimaryPartCFrame(essence.CFrame)
             end)
-            
-            yOffset = yOffset + 45
+            button.Parent = listFrame
         end
     end
-    essenceList.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y)
 end
 
--- Update essence list on folder changes
-folder.ChildAdded:Connect(updateEssenceList)
-folder.ChildRemoved:Connect(updateEssenceList)
+local function toggleGUI()
+    if minimized then
+        mainFrame.Visible = true
+    else
+        mainFrame.Visible = false
+    end
+    minimized = not minimized
+end
 
--- Toggle GUI visibility with F1
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.F1 then
-        mainFrame.Visible = not mainFrame.Visible
+-- Connectors
+spawnFolder.ChildAdded:Connect(updateList)
+spawnFolder.ChildRemoved:Connect(updateList)
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == toggleKey then
+        toggleGUI()
     end
 end)
 
--- Minimize functionality
-minimizeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-end)
-
--- Initial update
-updateEssenceList()
-
--- Done!
-print("Essence Tracker loaded.")
+-- Initial Setup
+updateList()
