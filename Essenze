@@ -1,0 +1,150 @@
+-- Services and Player Setup
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Remotes
+local skillEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SkillEvent")
+local spinEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SpinEvent")
+
+-- Farming Variables
+local farming = true
+local spinning = true
+local safeTeleport = true
+local scriptEnabled = true
+
+-- Desirable Essences
+local desiredEssences = {
+    ["Cosmic Essence"] = true,
+    ["Spatial Essence"] = true,
+    ["Essence of Destruction"] = true,
+    ["Arcane Essence"] = true
+}
+
+-- Safe Platform Position
+local safePosition = Vector3.new(18872, 699, 958)
+
+-- Helper Function to Fire SkillEvent
+local function fireSkill(skill, position, rotation, timestamp, extra)
+    local args = {skill, position, rotation, timestamp, extra}
+    skillEvent:FireServer(unpack(args))
+end
+
+-- Create a Safe Platform
+local function createSafePlatform()
+    if not workspace:FindFirstChild("SafePlatform") then
+        local platform = Instance.new("Part")
+        platform.Name = "SafePlatform"
+        platform.Size = Vector3.new(50, 1, 50)
+        platform.Position = safePosition
+        platform.Anchored = true
+        platform.Material = Enum.Material.SmoothPlastic
+        platform.Color = Color3.new(1, 1, 1) -- White
+        platform.Parent = workspace
+    end
+end
+
+-- Teleport to Safe Platform
+local function teleportToSafePosition()
+    while safeTeleport and scriptEnabled do
+        task.wait(0.1)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(safePosition)
+        end
+    end
+end
+
+-- Farming Logic
+local function autoFarm()
+    while farming and scriptEnabled do
+        task.wait(0.5) -- Prevents excessive load on the game
+        
+        -- Fire skill events (adjust position and rotation as needed)
+        fireSkill("E", Vector3.new(733.5, 12.1, 644.9), CFrame.new(654.4, 15.1, 536.1), os.time(), "e1")
+        fireSkill("R", Vector3.new(703.6, 16, 676.2), CFrame.new(701.3, 15.1, 618.7), os.time(), "e1")
+        fireSkill("F", Vector3.new(704.4, 17.6, 676.7), CFrame.new(707.9, 15.1, 629.9), os.time(), "e1")
+        fireSkill("E", Vector3.new(732, 24.2, 691.3), CFrame.new(730.5, 15.1, 666.4), os.time(), "e2")
+        fireSkill("R", Vector3.new(761.3, 16.5, 702.6), CFrame.new(736.5, 15.1, 672.3), os.time(), "e2")
+        fireSkill("F", Vector3.new(747.6, 18.7, 698.9), CFrame.new(742.6, 15.1, 678.2), os.time(), "e2")
+        
+        -- Check Level
+        local level = LocalPlayer:FindFirstChild("Level")
+        if level and level.Value >= 10 then
+            spinning = true
+            break
+        end
+    end
+end
+
+-- Spinner Logic
+local function autoSpin()
+    while spinning and scriptEnabled do
+        task.wait(0.5) -- Prevents excessive load on the game
+        
+        -- Fire spin remote
+        spinEvent:FireServer("e1")
+        
+        -- Check Spin Result
+        local essences = LocalPlayer:FindFirstChild("Essences")
+        if essences then
+            for _, essence in pairs(essences:GetChildren()) do
+                if desiredEssences[essence.Name] then
+                    print("Desired essence obtained:", essence.Name)
+                    spinning = false
+                    break
+                end
+            end
+        end
+        
+        -- Break the loop if spinning stops
+        if not spinning then
+            break
+        end
+    end
+end
+
+-- Main Loop
+task.spawn(function()
+    while scriptEnabled do
+        if farming then
+            autoFarm()
+        end
+        
+        if spinning then
+            autoSpin()
+        end
+        
+        -- Reset farming after spin
+        if not spinning then
+            farming = true
+        end
+    end
+end)
+
+-- Teleportation Loop
+task.spawn(function()
+    while scriptEnabled do
+        if safeTeleport then
+            teleportToSafePosition()
+        end
+        task.wait(1) -- Prevent constant teleportation checks
+    end
+end)
+
+-- Toggle Script Using 'P'
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.P then
+        scriptEnabled = not scriptEnabled
+        farming = scriptEnabled
+        spinning = scriptEnabled
+        safeTeleport = scriptEnabled
+        print("Script Enabled:", scriptEnabled)
+    end
+end)
+
+-- Create the Safe Platform
+createSafePlatform()
