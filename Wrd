@@ -1,0 +1,87 @@
+-- Variables
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local folder = workspace:WaitForChild("SpawnedEnemies")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+
+local teleportEnabled = false -- Toggle state
+local bomb -- Reference to the bomb, if added
+
+-- Function to teleport enemies in front of the player
+local function teleportEnemies()
+    for _, enemy in ipairs(folder:GetChildren()) do
+        if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
+            local enemyRoot = enemy.HumanoidRootPart
+            -- Calculate position 20 studs in front of the player
+            local frontPosition = rootPart.CFrame * CFrame.new(0, 0, -20)
+            enemyRoot.CFrame = frontPosition
+        end
+    end
+end
+
+-- Function to teleport the bomb to enemies
+local function teleportBombToEnemies()
+    if bomb and bomb:IsA("MeshPart") then
+        for _, enemy in ipairs(folder:GetChildren()) do
+            if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
+                local enemyRoot = enemy.HumanoidRootPart
+                bomb.CFrame = enemyRoot.CFrame -- Teleport bomb to enemy's root part
+                task.wait(0.1) -- Brief delay to avoid instant overwriting of position
+            end
+        end
+    end
+end
+
+-- Function to detect and delete parts with TouchTransmitter
+local function deletePartsWithTouchInterest()
+    for _, part in ipairs(workspace:GetDescendants()) do
+        if part:IsA("BasePart") and part:FindFirstChildOfClass("TouchTransmitter") then
+            part:Destroy()
+        end
+    end
+end
+
+-- Toggle function for loop
+local function toggleTeleport()
+    teleportEnabled = not teleportEnabled -- Toggle on/off
+    print("Teleport Toggled:", teleportEnabled)
+end
+
+-- Listen for key press
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end -- Ignore if the game UI is consuming the input
+    if input.KeyCode == Enum.KeyCode.P then
+        toggleTeleport()
+    end
+end)
+
+-- Detect when new enemies are added to the folder
+folder.ChildAdded:Connect(function(child)
+    if teleportEnabled and child:IsA("Model") and child:FindFirstChild("HumanoidRootPart") then
+        -- Teleport the new enemy immediately if teleport is active
+        local enemyRoot = child.HumanoidRootPart
+        local frontPosition = rootPart.CFrame * CFrame.new(0, 0, -20)
+        enemyRoot.CFrame = frontPosition
+    end
+end)
+
+-- Detect when a MeshPart named "Bomb" is added to workspace
+workspace.ChildAdded:Connect(function(child)
+    if child:IsA("MeshPart") and child.Name == "Bomb" then
+        print("Bomb detected in workspace")
+        bomb = child -- Assign reference to the bomb
+    end
+end)
+
+-- Main loop: Handles all functionality when toggle is enabled
+runService.Heartbeat:Connect(function()
+    if teleportEnabled then
+        teleportEnemies() -- Teleport enemies
+        if bomb then
+            teleportBombToEnemies() -- Teleport bomb to enemies
+        end
+        deletePartsWithTouchInterest() -- Delete parts with TouchTransmitter
+    end
+end)
