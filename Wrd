@@ -45,12 +45,19 @@ folder.ChildAdded:Connect(function(child)
 end)
 
 -- Function to teleport "Bomb" to all enemies
-local function teleportBombToEnemies(bomb)
-    while bomb and bomb.Parent do
+local function teleportBombToEnemies(bombModel)
+    -- Ensure the bomb has a primary part or a similar teleportable reference
+    local bombPrimaryPart = bombModel.PrimaryPart or bombModel:FindFirstChild("HumanoidRootPart") or bombModel:FindFirstChildWhichIsA("BasePart")
+    if not bombPrimaryPart then
+        warn("No teleportable part found in Bomb model!")
+        return
+    end
+
+    while bombModel and bombModel.Parent do
         for _, enemy in ipairs(folder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
                 local enemyRoot = enemy.HumanoidRootPart
-                bomb.CFrame = enemyRoot.CFrame * CFrame.new(0, 5, 0) -- Adjust to hover above the enemy
+                bombPrimaryPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 5, 0) -- Adjust to hover above the enemy
                 task.wait(0.5) -- Delay to simulate looping through enemies
             end
         end
@@ -58,10 +65,10 @@ local function teleportBombToEnemies(bomb)
     end
 end
 
--- Detect when a MeshPart named "Bomb" is added to the workspace
+-- Detect when a Model named "Bomb" is added to the workspace
 workspace.ChildAdded:Connect(function(child)
-    if child:IsA("MeshPart") and child.Name == "Bomb" then
-        print("Bomb detected! Starting teleport loop to enemies.")
+    if child:IsA("Model") and child.Name == "Bomb" then
+        print("Bomb model detected! Starting teleport loop to enemies.")
         teleportBombToEnemies(child)
     end
 end)
