@@ -58,7 +58,7 @@ local function teleportBombToEnemies(bombModel)
             if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
                 local enemyRoot = enemy.HumanoidRootPart
                 bombPrimaryPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 5, 0) -- Adjust to hover above the enemy
-                task.wait(0.5) -- Delay to simulate looping through enemies
+                task.wait(0.1) -- Delay to simulate looping through enemies
             end
         end
         task.wait(0.1) -- Prevent infinite fast-looping
