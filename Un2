@@ -9,7 +9,7 @@ local SpinEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SpinEv
 local webhookURL = "https://discord.com/api/webhooks/1310266194800017418/woemBAEypMRUrvUfGC6us0AxYOtPP63jhAO6OILj0XLaVIAj8ycHCJ1bdGvqjmLaUmTp"
 local toggleKey = Enum.KeyCode.P
 local spinnerEnabled = false
-local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction", "Arcane Essence", "Essence of Darkness", "Essence of Light"}
+local desiredEssences = {"Cosmic Essence", "Spatial Essence", "Essence of Destruction", "Arcane Essence"}
 
 -- Function to send webhook notifications
 local function sendEssenceNotification(essence, isDesired)
