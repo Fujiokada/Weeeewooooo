@@ -7,7 +7,8 @@ local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
 
 local teleportEnabled = false -- Toggle state
-local teleportParts = {} -- Table to store parts for loop teleportation
+local teleportParts = {} -- Table to store parts with TouchTransmitter for loop teleportation
+local bombModels = {} -- Table to store bomb models for loop teleportation
 
 -- Function to teleport objects in front of the player
 local function teleportInFront(object)
@@ -52,34 +53,6 @@ folder.ChildAdded:Connect(function(child)
     end
 end)
 
--- Function to teleport "Bomb" to all enemies
-local function teleportBombToEnemies(bombModel)
-    local bombPrimaryPart = bombModel.PrimaryPart or bombModel:FindFirstChildWhichIsA("BasePart")
-    if not bombPrimaryPart then
-        warn("No teleportable part found in Bomb model!")
-        return
-    end
-
-    while bombModel and bombModel.Parent do
-        for _, enemy in ipairs(folder:GetChildren()) do
-            if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
-                local enemyRoot = enemy.HumanoidRootPart
-                bombPrimaryPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 5, 0) -- Adjust to hover above the enemy
-                task.wait(0.1) -- Delay for teleporting bomb to the next enemy
-            end
-        end
-        task.wait(0.1) -- Prevent infinite fast-looping
-    end
-end
-
--- Detect when a Model named "Bomb" is added to the workspace
-workspace.ChildAdded:Connect(function(child)
-    if child:IsA("Model") and child.Name == "Bomb" then
-        print("Bomb model detected! Starting teleport loop to enemies.")
-        teleportBombToEnemies(child)
-    end
-end)
-
 -- Detect and add parts with TouchTransmitter to the loop
 workspace.DescendantAdded:Connect(function(descendant)
     if descendant:IsA("BasePart") and descendant:FindFirstChildOfClass("TouchTransmitter") then
@@ -95,8 +68,24 @@ workspace.DescendantRemoving:Connect(function(descendant)
     end
 end)
 
--- Loop to teleport parts with TouchTransmitter
+-- Detect when a Model named "Bomb" is added to the workspace
+workspace.ChildAdded:Connect(function(child)
+    if child:IsA("Model") and child.Name == "Bomb" then
+        print("Bomb model detected:", child.Name)
+        bombModels[child] = true -- Add bomb to loop table
+    end
+end)
+
+-- Remove bomb models from the loop table if they are destroyed
+workspace.ChildRemoving:Connect(function(child)
+    if bombModels[child] then
+        bombModels[child] = nil -- Remove bomb from loop table
+    end
+end)
+
+-- Loop to teleport parts with TouchTransmitter and bombs in front of the player
 runService.RenderStepped:Connect(function()
+    -- Teleport TouchTransmitter parts
     for part in pairs(teleportParts) do
         if part and part.Parent then
             teleportInFront(part) -- Continuously teleport the part in front of the player
@@ -105,7 +94,17 @@ runService.RenderStepped:Connect(function()
         end
     end
 
+    -- Teleport bomb models
+    for bomb in pairs(bombModels) do
+        if bomb and bomb.Parent then
+            teleportInFront(bomb) -- Continuously teleport the bomb in front of the player
+        else
+            bombModels[bomb] = nil -- Clean up invalid bomb models
+        end
+    end
+
+    -- Teleport enemies if enabled
     if teleportEnabled then
-        teleportEnemies() -- Teleport enemies if enabled
+        teleportEnemies()
     end
 end)
