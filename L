@@ -1,0 +1,111 @@
+-- Variables
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local folder = workspace:WaitForChild("SpawnedEnemies")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+
+local teleportEnabled = false -- Toggle state
+local teleportParts = {} -- Table to store parts for loop teleportation
+
+-- Function to teleport objects in front of the player
+local function teleportInFront(object)
+    local frontPosition = rootPart.CFrame * CFrame.new(0, 0, -20)
+    if object:IsA("BasePart") then
+        object.CFrame = frontPosition
+    elseif object:IsA("Model") then
+        local primaryPart = object.PrimaryPart or object:FindFirstChildWhichIsA("BasePart")
+        if primaryPart then
+            object:SetPrimaryPartCFrame(frontPosition)
+        end
+    end
+end
+
+-- Function to teleport enemies in front of the player
+local function teleportEnemies()
+    for _, enemy in ipairs(folder:GetChildren()) do
+        if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
+            teleportInFront(enemy.HumanoidRootPart)
+        end
+    end
+end
+
+-- Toggle function for loop
+local function toggleTeleport()
+    teleportEnabled = not teleportEnabled -- Toggle on/off
+    print("Teleport Toggled:", teleportEnabled)
+end
+
+-- Listen for key press to toggle teleporting enemies
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end -- Ignore if the game UI is consuming the input
+    if input.KeyCode == Enum.KeyCode.P then
+        toggleTeleport()
+    end
+end)
+
+-- Detect when new enemies are added to the folder
+folder.ChildAdded:Connect(function(child)
+    if teleportEnabled and child:IsA("Model") and child:FindFirstChild("HumanoidRootPart") then
+        teleportInFront(child.HumanoidRootPart)
+    end
+end)
+
+-- Function to teleport "Bomb" to all enemies
+local function teleportBombToEnemies(bombModel)
+    local bombPrimaryPart = bombModel.PrimaryPart or bombModel:FindFirstChildWhichIsA("BasePart")
+    if not bombPrimaryPart then
+        warn("No teleportable part found in Bomb model!")
+        return
+    end
+
+    while bombModel and bombModel.Parent do
+        for _, enemy in ipairs(folder:GetChildren()) do
+            if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
+                local enemyRoot = enemy.HumanoidRootPart
+                bombPrimaryPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 5, 0) -- Adjust to hover above the enemy
+                task.wait(0.1) -- Delay for teleporting bomb to the next enemy
+            end
+        end
+        task.wait(0.1) -- Prevent infinite fast-looping
+    end
+end
+
+-- Detect when a Model named "Bomb" is added to the workspace
+workspace.ChildAdded:Connect(function(child)
+    if child:IsA("Model") and child.Name == "Bomb" then
+        print("Bomb model detected! Starting teleport loop to enemies.")
+        teleportBombToEnemies(child)
+    end
+end)
+
+-- Detect and add parts with TouchTransmitter to the loop
+workspace.DescendantAdded:Connect(function(descendant)
+    if descendant:IsA("BasePart") and descendant:FindFirstChildOfClass("TouchTransmitter") then
+        print("Part with TouchTransmitter detected:", descendant.Name)
+        teleportParts[descendant] = true -- Add part to loop table
+    end
+end)
+
+-- Remove parts from the loop table if they are destroyed
+workspace.DescendantRemoving:Connect(function(descendant)
+    if teleportParts[descendant] then
+        teleportParts[descendant] = nil -- Remove part from loop table
+    end
+end)
+
+-- Loop to teleport parts with TouchTransmitter
+runService.RenderStepped:Connect(function()
+    for part in pairs(teleportParts) do
+        if part and part.Parent then
+            teleportInFront(part) -- Continuously teleport the part in front of the player
+        else
+            teleportParts[part] = nil -- Clean up invalid parts
+        end
+    end
+
+    if teleportEnabled then
+        teleportEnemies() -- Teleport enemies if enabled
+    end
+end)
