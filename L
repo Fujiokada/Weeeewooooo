@@ -7,8 +7,8 @@ local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
 
 local teleportEnabled = false -- Toggle state
-local teleportParts = {} -- Table to store parts with TouchTransmitter for loop teleportation
-local bombModels = {} -- Table to store bomb models for loop teleportation
+local teleportParts = {} -- Table to store parts for loop teleportation
+local teleportBombs = {} -- Table to store bombs for loop teleportation
 
 -- Function to teleport objects in front of the player
 local function teleportInFront(object)
@@ -61,17 +61,26 @@ workspace.DescendantAdded:Connect(function(descendant)
     end
 end)
 
--- Detect when a Model named "Bomb" is added to the workspace
-workspace.ChildAdded:Connect(function(child)
-    if child:IsA("Model") and child.Name == "Bomb" then
-        print("Bomb model detected:", child.Name)
-        bombModels[child] = true -- Add bomb to loop table
+-- Remove parts from the loop table if they are destroyed
+workspace.DescendantRemoving:Connect(function(descendant)
+    if teleportParts[descendant] then
+        teleportParts[descendant] = nil -- Remove part from loop table
+    end
+    if teleportBombs[descendant] then
+        teleportBombs[descendant] = nil -- Remove bomb from loop table
     end
 end)
 
--- Loop to teleport parts with TouchTransmitter and bombs in front of the player
+-- Detect when a Model named "Bomb" is added to the workspace
+workspace.ChildAdded:Connect(function(child)
+    if child:IsA("Model") and child.Name == "Bomb" then
+        print("Bomb model detected! Adding to loop teleport.")
+        teleportBombs[child] = true -- Add bomb to loop table
+    end
+end)
+
+-- Loop to teleport parts and bombs in front of the player
 runService.RenderStepped:Connect(function()
-    -- Teleport TouchTransmitter parts
     for part in pairs(teleportParts) do
         if part and part.Parent then
             teleportInFront(part) -- Continuously teleport the part in front of the player
@@ -80,17 +89,15 @@ runService.RenderStepped:Connect(function()
         end
     end
 
-    -- Teleport bomb models
-    for bomb in pairs(bombModels) do
+    for bomb in pairs(teleportBombs) do
         if bomb and bomb.Parent then
             teleportInFront(bomb) -- Continuously teleport the bomb in front of the player
         else
-            bombModels[bomb] = nil -- Clean up invalid bomb models
+            teleportBombs[bomb] = nil -- Clean up invalid bombs
         end
     end
 
-    -- Teleport enemies if enabled
     if teleportEnabled then
-        teleportEnemies()
+        teleportEnemies() -- Teleport enemies if enabled
     end
 end)
