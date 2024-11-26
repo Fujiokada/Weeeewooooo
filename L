@@ -61,25 +61,11 @@ workspace.DescendantAdded:Connect(function(descendant)
     end
 end)
 
--- Remove parts from the loop table if they are destroyed
-workspace.DescendantRemoving:Connect(function(descendant)
-    if teleportParts[descendant] then
-        teleportParts[descendant] = nil -- Remove part from loop table
-    end
-end)
-
 -- Detect when a Model named "Bomb" is added to the workspace
 workspace.ChildAdded:Connect(function(child)
     if child:IsA("Model") and child.Name == "Bomb" then
         print("Bomb model detected:", child.Name)
         bombModels[child] = true -- Add bomb to loop table
-    end
-end)
-
--- Remove bomb models from the loop table if they are destroyed
-workspace.ChildRemoving:Connect(function(child)
-    if bombModels[child] then
-        bombModels[child] = nil -- Remove bomb from loop table
     end
 end)
 
