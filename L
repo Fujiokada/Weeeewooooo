@@ -19,6 +19,8 @@ local function teleportInFront(object)
         local primaryPart = object.PrimaryPart or object:FindFirstChildWhichIsA("BasePart")
         if primaryPart then
             object:SetPrimaryPartCFrame(frontPosition)
+        else
+            warn("No valid part found to teleport for object:", object.Name)
         end
     end
 end
@@ -74,30 +76,38 @@ end)
 -- Detect when a Model named "Bomb" is added to the workspace
 workspace.ChildAdded:Connect(function(child)
     if child:IsA("Model") and child.Name == "Bomb" then
-        print("Bomb model detected! Adding to loop teleport.")
-        teleportBombs[child] = true -- Add bomb to loop table
+        local primaryPart = child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
+        if primaryPart then
+            print("Bomb model detected! Adding to loop teleport.")
+            teleportBombs[child] = true -- Add bomb to loop table
+        else
+            warn("Bomb model found but has no teleportable part!")
+        end
     end
 end)
 
 -- Loop to teleport parts and bombs in front of the player
 runService.RenderStepped:Connect(function()
+    -- Loop teleport parts with TouchTransmitter
     for part in pairs(teleportParts) do
         if part and part.Parent then
-            teleportInFront(part) -- Continuously teleport the part in front of the player
+            teleportInFront(part)
         else
             teleportParts[part] = nil -- Clean up invalid parts
         end
     end
 
+    -- Loop teleport bombs
     for bomb in pairs(teleportBombs) do
         if bomb and bomb.Parent then
-            teleportInFront(bomb) -- Continuously teleport the bomb in front of the player
+            teleportInFront(bomb)
         else
             teleportBombs[bomb] = nil -- Clean up invalid bombs
         end
     end
 
+    -- Teleport enemies if enabled
     if teleportEnabled then
-        teleportEnemies() -- Teleport enemies if enabled
+        teleportEnemies()
     end
 end)
