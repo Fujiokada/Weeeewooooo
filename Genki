@@ -1,0 +1,59 @@
+-- External executor script
+
+-- References to folders and specific part
+local clovaFolder = game:GetService("Workspace"):WaitForChild("clova")
+local buttonsFolder = game:GetService("Workspace"):WaitForChild("Buttons")
+local rollRarityTouch = game:GetService("Workspace")["Roll System"]:WaitForChild("RollRarity")
+
+-- Function to process TouchTransmitter of a given part
+local function processTouchTransmitter(part)
+    local touchTransmitter = part:FindFirstChildOfClass("TouchTransmitter") -- Find TouchTransmitter
+    if touchTransmitter then
+        -- Fire the TouchTransmitter
+        firetouchinterest(part, game.Players.LocalPlayer.Character.HumanoidRootPart, 0)
+        firetouchinterest(part, game.Players.LocalPlayer.Character.HumanoidRootPart, 1)
+    end
+end
+
+-- Function to monitor the clova folder
+local function monitorClovaFolder()
+    while true do
+        for _, model in ipairs(clovaFolder:GetChildren()) do
+            if model:IsA("Model") and (model.Name == "four" or model.Name == "three") then
+                local rootPart = model:FindFirstChild("Root")
+                if rootPart and rootPart:IsA("BasePart") then
+                    processTouchTransmitter(rootPart)
+                end
+            end
+        end
+        wait(1) -- Independent loop delay
+    end
+end
+
+-- Function to handle the RollRarity TouchInterest
+local function monitorRollRarity()
+    while true do
+        if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
+            processTouchTransmitter(rollRarityTouch)
+        end
+        wait(1) -- Independent loop delay
+    end
+end
+
+-- Function to cycle through buttons with a delay
+local function cycleThroughButtons()
+    while true do
+        for _, meshPart in ipairs(buttonsFolder:GetChildren()) do
+            if meshPart:IsA("MeshPart") then
+                processTouchTransmitter(meshPart)
+                wait(0.2) -- Delay between each button
+            end
+        end
+        wait(0.2) -- Delay before starting the cycle again
+    end
+end
+
+-- Start all functions in independent threads
+task.spawn(monitorClovaFolder)
+task.spawn(monitorRollRarity)
+task.spawn(cycleThroughButtons)
