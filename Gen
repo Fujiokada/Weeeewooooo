@@ -4,6 +4,7 @@
 local clovaFolder = game:GetService("Workspace"):WaitForChild("clova")
 local buttonsFolder = game:GetService("Workspace"):WaitForChild("Buttons")
 local rollRarityTouch = game:GetService("Workspace")["Roll System"]:WaitForChild("RollRarity")
+local normalRuneRollRarity = game:GetService("Workspace").normal.runez:WaitForChild("RollRarity") -- Added part
 
 local player = game.Players.LocalPlayer -- Reference to the player
 local character = player.Character or player.CharacterAdded:Wait() -- Ensure character is loaded
@@ -25,7 +26,7 @@ end
 local function monitorClovaFolder()
     while true do
         for _, model in ipairs(clovaFolder:GetChildren()) do
-            if model:IsA("Model") and (model.Name == "four" or model.Name == "three") then
+            if model:IsA("Model") and (model.Name == "four" or model.Name == "three" or model.Name == "five") then
                 local rootPart = model:FindFirstChild("Root")
                 if rootPart and rootPart:IsA("BasePart") then
                     processTouchTransmitter(rootPart)
@@ -46,6 +47,16 @@ local function monitorRollRarity()
     end
 end
 
+-- Function to handle the normal.runez.RollRarity TouchInterest
+local function monitorNormalRuneRollRarity()
+    while true do
+        if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
+            processTouchTransmitter(normalRuneRollRarity)
+        end
+        wait(1) -- Independent loop delay
+    end
+end
+
 -- Function to cycle through buttons with a distance check
 local function cycleThroughButtons()
     while true do
@@ -59,11 +70,12 @@ local function cycleThroughButtons()
                 end
             end
         end
-        wait(0.5) -- Delay before starting the cycle again
+        wait(0.2) -- Delay before starting the cycle again
     end
 end
 
 -- Start all functions in independent threads
 task.spawn(monitorClovaFolder)
 task.spawn(monitorRollRarity)
+task.spawn(monitorNormalRuneRollRarity) -- Start monitoring normal.runez.RollRarity
 task.spawn(cycleThroughButtons)
