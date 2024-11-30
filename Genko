@@ -63,10 +63,10 @@ local function cycleThroughButtons()
         for _, button in ipairs(buttonsFolder:GetChildren()) do
             if button:IsA("BasePart") then -- Includes both MeshPart and Part
                 processTouchTransmitter(button) -- Fire the TouchTransmitter
-                wait(0.2) -- Delay between firing each button
+                wait() -- Delay between firing each button
             end
         end
-        wait(0.2) -- Delay before cycling through buttons again
+        wait(0.1) -- Delay before cycling through buttons again
     end
 end
 
