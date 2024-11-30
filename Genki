@@ -33,7 +33,7 @@ local function monitorClovaFolder()
                 end
             end
         end
-        wait(1) -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -43,7 +43,7 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait(1) -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -53,7 +53,7 @@ local function monitorNormalRuneRollRarity()
         if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
             processTouchTransmitter(normalRuneRollRarity)
         end
-        wait(1) -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
