@@ -57,20 +57,16 @@ local function monitorNormalRuneRollRarity()
     end
 end
 
--- Function to cycle through buttons with a distance check
+-- Function to cycle through buttons with a fixed delay
 local function cycleThroughButtons()
     while true do
         for _, button in ipairs(buttonsFolder:GetChildren()) do
             if button:IsA("BasePart") then -- Includes both MeshPart and Part
-                -- Check distance from the player
-                local distance = (button.Position - rootPart.Position).Magnitude
-                if distance <= FIRE_RADIUS then
-                    processTouchTransmitter(button)
-                    wait(0.2) -- Delay between each button
-                end
+                processTouchTransmitter(button) -- Fire the TouchTransmitter
+                wait(0.2) -- Delay between firing each button
             end
         end
-        wait(0.2) -- Delay before starting the cycle again
+        wait(0.2) -- Delay before cycling through buttons again
     end
 end
 
