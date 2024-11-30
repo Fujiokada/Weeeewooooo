@@ -26,8 +26,8 @@ end
 local function monitorClovaFolder()
     while true do
         for _, model in ipairs(clovaFolder:GetChildren()) do
-            if model:IsA("Model") and (model.Name == "four" or model.Name == "three" or model.Name == "five") then
-                local rootPart = model:FindFirstChild("Root")
+            if model:IsA("Model") then -- Process all models
+                local rootPart = model:FindFirstChild("Root") -- Check for the "Root" part
                 if rootPart and rootPart:IsA("BasePart") then
                     processTouchTransmitter(rootPart)
                 end
