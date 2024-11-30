@@ -49,12 +49,12 @@ end
 -- Function to cycle through buttons with a distance check
 local function cycleThroughButtons()
     while true do
-        for _, meshPart in ipairs(buttonsFolder:GetChildren()) do
-            if meshPart:IsA("MeshPart") then
+        for _, button in ipairs(buttonsFolder:GetChildren()) do
+            if button:IsA("BasePart") then -- Includes both MeshPart and Part
                 -- Check distance from the player
-                local distance = (meshPart.Position - rootPart.Position).Magnitude
+                local distance = (button.Position - rootPart.Position).Magnitude
                 if distance <= FIRE_RADIUS then
-                    processTouchTransmitter(meshPart)
+                    processTouchTransmitter(button)
                     wait(0.2) -- Delay between each button
                 end
             end
