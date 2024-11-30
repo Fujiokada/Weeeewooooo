@@ -5,13 +5,19 @@ local clovaFolder = game:GetService("Workspace"):WaitForChild("clova")
 local buttonsFolder = game:GetService("Workspace"):WaitForChild("Buttons")
 local rollRarityTouch = game:GetService("Workspace")["Roll System"]:WaitForChild("RollRarity")
 
+local player = game.Players.LocalPlayer -- Reference to the player
+local character = player.Character or player.CharacterAdded:Wait() -- Ensure character is loaded
+local rootPart = character:WaitForChild("HumanoidRootPart") -- Get the player's root part
+
+local FIRE_RADIUS = 200 -- Radius within which MeshParts will be processed
+
 -- Function to process TouchTransmitter of a given part
 local function processTouchTransmitter(part)
     local touchTransmitter = part:FindFirstChildOfClass("TouchTransmitter") -- Find TouchTransmitter
     if touchTransmitter then
         -- Fire the TouchTransmitter
-        firetouchinterest(part, game.Players.LocalPlayer.Character.HumanoidRootPart, 0)
-        firetouchinterest(part, game.Players.LocalPlayer.Character.HumanoidRootPart, 1)
+        firetouchinterest(part, rootPart, 0)
+        firetouchinterest(part, rootPart, 1)
     end
 end
 
@@ -40,16 +46,20 @@ local function monitorRollRarity()
     end
 end
 
--- Function to cycle through buttons with a delay
+-- Function to cycle through buttons with a distance check
 local function cycleThroughButtons()
     while true do
         for _, meshPart in ipairs(buttonsFolder:GetChildren()) do
             if meshPart:IsA("MeshPart") then
-                processTouchTransmitter(meshPart)
-                wait(0.2) -- Delay between each button
+                -- Check distance from the player
+                local distance = (meshPart.Position - rootPart.Position).Magnitude
+                if distance <= FIRE_RADIUS then
+                    processTouchTransmitter(meshPart)
+                    wait(0.2) -- Delay between each button
+                end
             end
         end
-        wait(0.2) -- Delay before starting the cycle again
+        wait(0.5) -- Delay before starting the cycle again
     end
 end
 
