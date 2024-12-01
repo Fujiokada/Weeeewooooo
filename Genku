@@ -33,7 +33,7 @@ local function monitorClovaFolder()
                 end
             end
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
@@ -43,7 +43,7 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
@@ -53,7 +53,7 @@ local function monitorNormalRuneRollRarity()
         if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
             processTouchTransmitter(normalRuneRollRarity)
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
@@ -84,7 +84,7 @@ local function cycleThroughButtons()
         -- Process prioritized buttons first
         for _, button in ipairs(prioritizedButtons) do
             processTouchTransmitter(button) -- Fire the TouchTransmitter
-            wait(0.2) -- Delay between firing each prioritized button
+            wait() -- Delay between firing each prioritized button
         end
 
         -- Then process remaining buttons, excluding exceptions
@@ -93,11 +93,11 @@ local function cycleThroughButtons()
                button.Name ~= "Super Multi Get" and button.Name ~= "Prestige Get" and
                not table.find(prioritizedButtons, button) then
                 processTouchTransmitter(button) -- Fire the TouchTransmitter
-                wait(0.2) -- Delay between firing each remaining button
+                wait() -- Delay between firing each remaining button
             end
         end
 
-        wait(0.5) -- Delay before cycling through buttons again
+        wait(0.1) -- Delay before cycling through buttons again
     end
 end
 
