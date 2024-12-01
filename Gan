@@ -4,13 +4,13 @@
 local clovaFolder = game:GetService("Workspace"):WaitForChild("clova")
 local buttonsFolder = game:GetService("Workspace"):WaitForChild("Buttons")
 local rollRarityTouch = game:GetService("Workspace")["Roll System"]:WaitForChild("RollRarity")
-local normalRuneRollRarity = game:GetService("Workspace").normal.runez:WaitForChild("RollRarity")
 
 local player = game.Players.LocalPlayer -- Reference to the player
 local character = player.Character or player.CharacterAdded:Wait() -- Ensure character is loaded
 local rootPart = character:WaitForChild("HumanoidRootPart") -- Get the player's root part
 
-local FIRE_RADIUS = 200 -- Radius within which buttons will be processed
+local FIRE_RADIUS = 200 -- Radius within which parts will be processed
+local EXCEPTION_NAMES = {["Super Multi Get"] = true, ["Prestige Get"] = true} -- Button exceptions
 
 -- Function to process TouchTransmitter of a given part
 local function processTouchTransmitter(part)
@@ -26,14 +26,14 @@ end
 local function monitorClovaFolder()
     while true do
         for _, model in ipairs(clovaFolder:GetChildren()) do
-            if model:IsA("Model") then -- Process all models
-                local rootPart = model:FindFirstChild("Root") -- Check for the "Root" part
-                if rootPart and rootPart:IsA("BasePart") then
+            if model:IsA("Model") then
+                local rootPart = model:FindFirstChildWhichIsA("BasePart") -- Handle any BasePart
+                if rootPart then
                     processTouchTransmitter(rootPart)
                 end
             end
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
@@ -43,47 +43,41 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
--- Function to handle the normal.runez.RollRarity TouchInterest
-local function monitorNormalRuneRollRarity()
+-- Function to process buttons independently
+local function processButton(button)
     while true do
-        if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
-            processTouchTransmitter(normalRuneRollRarity)
-        end
-        wait(0.1) -- Independent loop delay
-    end
-end
-
--- Function to monitor a single button
-local function monitorButton(button)
-    while true do
-        if button:IsA("BasePart") then
+        if button:IsA("BasePart") and not EXCEPTION_NAMES[button.Name] then
+            -- Check distance from the player
             local distance = (button.Position - rootPart.Position).Magnitude
-            -- Check if the button is within range and its material is Neon
             if distance <= FIRE_RADIUS and button.Material == Enum.Material.Neon then
                 processTouchTransmitter(button)
-                wait(0.2) -- Delay between firings for this button
-            else
-                wait(0.1) -- Short delay if conditions aren't met
             end
         end
+        wait(0.1) -- Delay for processing each button independently
     end
 end
 
--- Start independent loops for each button in the folder
-local function monitorAllButtons()
+-- Function to monitor buttons folder
+local function monitorButtonsFolder()
     for _, button in ipairs(buttonsFolder:GetChildren()) do
-        if button:IsA("BasePart") then
-            task.spawn(monitorButton, button) -- Create an independent loop for each button
+        if button:IsA("BasePart") or button:IsA("MeshPart") then
+            task.spawn(processButton, button) -- Create an independent loop for each button
         end
     end
+
+    -- Listen for new buttons being added to the folder
+    buttonsFolder.ChildAdded:Connect(function(button)
+        if button:IsA("BasePart") or button:IsA("MeshPart") then
+            task.spawn(processButton, button) -- Start processing the new button
+        end
+    end)
 end
 
 -- Start all functions in independent threads
 task.spawn(monitorClovaFolder)
 task.spawn(monitorRollRarity)
-task.spawn(monitorNormalRuneRollRarity)
-monitorAllButtons() -- Start monitoring all buttons
+task.spawn(monitorButtonsFolder)
