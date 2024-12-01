@@ -44,7 +44,7 @@ local function initializeButtonLoops()
                     if isWithinRadius(button, FIRE_RADIUS) and button.Material == Enum.Material.Neon then
                         processTouchTransmitter(button)
                     end
-                    wait(0.2) -- Adjust the delay as needed for individual button pressing speed
+                    wait() -- Adjust the delay as needed for individual button pressing speed
                 end
             end)
         end
@@ -62,7 +62,7 @@ local function monitorClovaFolder()
                 end
             end
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
@@ -72,7 +72,7 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
@@ -82,7 +82,7 @@ local function monitorNormalRuneRollRarity()
         if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
             processTouchTransmitter(normalRuneRollRarity)
         end
-        wait(0.1) -- Independent loop delay
+        wait() -- Independent loop delay
     end
 end
 
