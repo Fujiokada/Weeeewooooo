@@ -1,6 +1,6 @@
 -- External executor script
 
--- References to folders and specific part
+-- References to folders and specific parts
 local clovaFolder = game:GetService("Workspace"):WaitForChild("clova")
 local buttonsFolder = game:GetService("Workspace"):WaitForChild("Buttons")
 local rollRarityTouch = game:GetService("Workspace")["Roll System"]:WaitForChild("RollRarity")
@@ -9,6 +9,8 @@ local normalRuneRollRarity = game:GetService("Workspace").normal.runez:WaitForCh
 local player = game.Players.LocalPlayer -- Reference to the player
 local character = player.Character or player.CharacterAdded:Wait() -- Ensure character is loaded
 local rootPart = character:WaitForChild("HumanoidRootPart") -- Get the player's root part
+
+local FIRE_RADIUS = 200 -- Radius within which buttons will be processed
 
 -- Function to process TouchTransmitter of a given part
 local function processTouchTransmitter(part)
@@ -20,30 +22,36 @@ local function processTouchTransmitter(part)
     end
 end
 
--- Independent loop for a single button
-local function buttonLoop(button)
-    while true do
-        if button and button:IsA("BasePart") then
-            processTouchTransmitter(button) -- Fire the TouchTransmitter
-        end
-        wait() -- Short delay between presses for each button
-    end
+-- Function to check if a part is within a certain radius
+local function isWithinRadius(part, radius)
+    local distance = (part.Position - rootPart.Position).Magnitude
+    return distance <= radius
 end
 
--- Function to spawn loops for all buttons
+-- Function to create independent loops for buttons within the 200-stud radius
 local function initializeButtonLoops()
     for _, button in ipairs(buttonsFolder:GetChildren()) do
         if button:IsA("BasePart") then
             -- Skip excluded buttons
-            if button.Name ~= "Super Multi Get" and button.Name ~= "Prestige Get" then
-                -- Spawn independent loops for all buttons
-                task.spawn(buttonLoop, button)
+            if button.Name == "Super Multi Get" or button.Name == "Prestige Get" then
+                continue
             end
+
+            -- Spawn a task for each button
+            task.spawn(function()
+                while true do
+                    -- Check if the button is within the radius
+                    if isWithinRadius(button, FIRE_RADIUS) then
+                        processTouchTransmitter(button)
+                    end
+                    wait(0.2) -- Adjust the delay as needed for individual button pressing speed
+                end
+            end)
         end
     end
 end
 
--- Function to monitor the clova folder
+-- Function to handle the clova folder
 local function monitorClovaFolder()
     while true do
         for _, model in ipairs(clovaFolder:GetChildren()) do
@@ -54,7 +62,7 @@ local function monitorClovaFolder()
                 end
             end
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -64,7 +72,7 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -74,12 +82,14 @@ local function monitorNormalRuneRollRarity()
         if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
             processTouchTransmitter(normalRuneRollRarity)
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
+
+-- Initialize independent loops for buttons
+initializeButtonLoops()
 
 -- Start all functions in independent threads
 task.spawn(monitorClovaFolder)
 task.spawn(monitorRollRarity)
-task.spawn(monitorNormalRuneRollRarity)
-initializeButtonLoops() -- Start individual loops for all buttons
+task.spawn(monitorNormalRuneRollRarity) -- Start monitoring normal.runez.RollRarity
