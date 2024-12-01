@@ -10,8 +10,23 @@ local character = player.Character or player.CharacterAdded:Wait() -- Ensure cha
 local rootPart = character:WaitForChild("HumanoidRootPart") -- Get the player's root part
 
 local FIRE_RADIUS = 200 -- Radius within which parts will be processed
-local REBIRTH_COOLDOWN = 5 -- Cooldown for firing the rebirth button
-local lastRebirthTime = 0 -- Tracks the last time the rebirth button was pressed
+local REBIRTH_INTERVAL = 5 -- Time interval for rebirth button firing
+local EXCEPTION_NAMES = {["Super Multi Get"] = true, ["Prestige Get"] = true} -- Button exceptions
+
+-- Button priority order
+local multiplierButtons = {
+    "Rare", "Legendary", buttonsFolder:GetChildren()[20], "Ultimate", "Overdrive", "Unknown",
+    buttonsFolder:GetChildren()[45], "Celestial", "Overlord", "50", "64",
+    buttonsFolder:GetChildren()[31], buttonsFolder:GetChildren()[32], buttonsFolder:GetChildren()[33],
+    "160", "200"
+}
+
+local rebirthButtons = {
+    buttonsFolder:GetChildren()[12], buttonsFolder:GetChildren()[6], "Rebirth1", "Rebirth2",
+    "Rebirth Upgrade 6", "Rebirth Upgrade 7"
+}
+
+local rebirthButton = buttonsFolder["Rebirth Get"]
 
 -- Function to process TouchTransmitter of a given part
 local function processTouchTransmitter(part)
@@ -23,55 +38,36 @@ local function processTouchTransmitter(part)
     end
 end
 
--- Multiplier buttons processing order
-local multiplierButtons = {
-    buttonsFolder.Rare,
-    buttonsFolder.Legendary,
-    buttonsFolder:GetChildren()[20],
-    buttonsFolder.Ultimate,
-    buttonsFolder.Overdrive,
-    buttonsFolder.Unknown,
-    buttonsFolder:GetChildren()[45],
-    buttonsFolder.Celestial,
-    buttonsFolder.Overlord,
-    buttonsFolder["50"],
-    buttonsFolder["64"],
-    buttonsFolder:GetChildren()[31],
-    buttonsFolder:GetChildren()[32],
-    buttonsFolder:GetChildren()[33],
-    buttonsFolder["160"],
-    buttonsFolder["200"]
-}
-
--- Rebirth button
-local rebirthButton = buttonsFolder["Rebirth Get"]
-
--- Rebirth upgrades processing order
-local rebirthUpgrades = {
-    buttonsFolder:GetChildren()[12],
-    buttonsFolder:GetChildren()[6],
-    buttonsFolder.Rebirth1,
-    buttonsFolder.Rebirth2,
-    buttonsFolder["Rebirth Upgrade 6"],
-    buttonsFolder["Rebirth Upgrade 7"]
-}
-
--- Function to process multiplier buttons in order
-local function processMultiplierButtons()
-    for _, button in ipairs(multiplierButtons) do
-        if button and button:IsA("BasePart") and button.Material == Enum.Material.Neon then
-            processTouchTransmitter(button)
-            break -- Stop firing once a higher-priority button is processed
+-- Function to check and fire multiplier buttons in order of priority
+local function handleMultiplierButtons()
+    while true do
+        for _, buttonName in ipairs(multiplierButtons) do
+            local button = typeof(buttonName) == "string" and buttonsFolder:FindFirstChild(buttonName) or buttonName
+            if button and button:IsA("BasePart") and button.Material == Enum.Material.Neon then
+                processTouchTransmitter(button)
+                break -- Stop firing once the highest priority affordable button is fired
+            end
         end
+        wait() -- Avoid excessive cycles
     end
 end
 
--- Function to process rebirth upgrades in order
-local function processRebirthUpgrades()
-    for _, upgrade in ipairs(rebirthUpgrades) do
-        if upgrade and upgrade:IsA("BasePart") and upgrade.Material == Enum.Material.Neon then
-            processTouchTransmitter(upgrade)
+-- Function to handle rebirth upgrades and button
+local function handleRebirthButtons()
+    while true do
+        -- Fire rebirth upgrades in order
+        for _, buttonName in ipairs(rebirthButtons) do
+            local button = typeof(buttonName) == "string" and buttonsFolder:FindFirstChild(buttonName) or buttonName
+            if button and button:IsA("BasePart") and button.Material == Enum.Material.Neon then
+                processTouchTransmitter(button)
+            end
         end
+
+        -- Fire rebirth button with interval
+        if rebirthButton and rebirthButton:IsA("BasePart") then
+            processTouchTransmitter(rebirthButton)
+        end
+        wait(REBIRTH_INTERVAL)
     end
 end
 
@@ -79,14 +75,14 @@ end
 local function monitorClovaFolder()
     while true do
         for _, model in ipairs(clovaFolder:GetChildren()) do
-            if model:IsA("Model") and (model.Name == "four" or model.Name == "three") then
-                local rootPart = model:FindFirstChild("Root")
-                if rootPart and rootPart:IsA("BasePart") then
+            if model:IsA("Model") then
+                local rootPart = model:FindFirstChildWhichIsA("BasePart") -- Handle any BasePart
+                if rootPart then
                     processTouchTransmitter(rootPart)
                 end
             end
         end
-        wait(1) -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -96,43 +92,12 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait(1) -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
--- Function to process other buttons based on proximity and material
-local function processOtherButtons()
-    while true do
-        for _, button in ipairs(buttonsFolder:GetChildren()) do
-            if button:IsA("BasePart") or button:IsA("MeshPart") then
-                local distance = (button.Position - rootPart.Position).Magnitude
-                if distance <= FIRE_RADIUS and button.Material == Enum.Material.Neon then
-                    processTouchTransmitter(button)
-                end
-            end
-        end
-        wait(0.5) -- Delay for other buttons
-    end
-end
-
--- Main cycle for prioritized tasks
-while true do
-    -- Process multiplier buttons
-    processMultiplierButtons()
-    wait(0.1) -- Small delay before rebirth logic
-
-    -- Process rebirth button every 5 seconds
-    if tick() - lastRebirthTime >= REBIRTH_COOLDOWN and rebirthButton.Material == Enum.Material.Neon then
-        processTouchTransmitter(rebirthButton)
-        lastRebirthTime = tick()
-    end
-
-    -- Process rebirth upgrades
-    processRebirthUpgrades()
-    wait(0.1) -- Main loop delay for prioritized tasks
-end
-
--- Start independent monitors
+-- Start all functions in independent threads
+task.spawn(handleMultiplierButtons)
+task.spawn(handleRebirthButtons)
 task.spawn(monitorClovaFolder)
 task.spawn(monitorRollRarity)
-task.spawn(processOtherButtons)
