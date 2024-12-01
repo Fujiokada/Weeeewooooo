@@ -57,16 +57,16 @@ local function monitorNormalRuneRollRarity()
     end
 end
 
--- Function to cycle through buttons with a fixed delay
+-- Function to cycle through buttons with a fixed delay, excluding specified buttons
 local function cycleThroughButtons()
     while true do
         for _, button in ipairs(buttonsFolder:GetChildren()) do
-            if button:IsA("BasePart") then -- Includes both MeshPart and Part
+            if button:IsA("BasePart") and button.Name ~= "Super Multi Get" and button.Name ~= "Prestige Get" then
                 processTouchTransmitter(button) -- Fire the TouchTransmitter
-                wait() -- Delay between firing each button
+                wait(0.2) -- Delay between firing each button
             end
         end
-        wait(0.1) -- Delay before cycling through buttons again
+        wait(0.5) -- Delay before cycling through buttons again
     end
 end
 
