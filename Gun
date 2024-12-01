@@ -28,7 +28,7 @@ local function isWithinRadius(part, radius)
     return distance <= radius
 end
 
--- Function to create independent loops for buttons within the 200-stud radius
+-- Function to create independent loops for buttons within the 200-stud radius and with Neon material
 local function initializeButtonLoops()
     for _, button in ipairs(buttonsFolder:GetChildren()) do
         if button:IsA("BasePart") then
@@ -40,11 +40,11 @@ local function initializeButtonLoops()
             -- Spawn a task for each button
             task.spawn(function()
                 while true do
-                    -- Check if the button is within the radius
-                    if isWithinRadius(button, FIRE_RADIUS) then
+                    -- Check if the button is within the radius and has Neon material
+                    if isWithinRadius(button, FIRE_RADIUS) and button.Material == Enum.Material.Neon then
                         processTouchTransmitter(button)
                     end
-                    wait() -- Adjust the delay as needed for individual button pressing speed
+                    wait(0.2) -- Adjust the delay as needed for individual button pressing speed
                 end
             end)
         end
@@ -62,7 +62,7 @@ local function monitorClovaFolder()
                 end
             end
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -72,7 +72,7 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -82,7 +82,7 @@ local function monitorNormalRuneRollRarity()
         if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
             processTouchTransmitter(normalRuneRollRarity)
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
