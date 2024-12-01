@@ -79,9 +79,9 @@ end
 local function monitorClovaFolder()
     while true do
         for _, model in ipairs(clovaFolder:GetChildren()) do
-            if model:IsA("Model") then
-                local rootPart = model:FindFirstChildWhichIsA("BasePart") -- Handle any BasePart
-                if rootPart then
+            if model:IsA("Model") and (model.Name == "four" or model.Name == "three") then
+                local rootPart = model:FindFirstChild("Root")
+                if rootPart and rootPart:IsA("BasePart") then
                     processTouchTransmitter(rootPart)
                 end
             end
@@ -100,11 +100,26 @@ local function monitorRollRarity()
     end
 end
 
--- Main cycle
+-- Function to process other buttons based on proximity and material
+local function processOtherButtons()
+    while true do
+        for _, button in ipairs(buttonsFolder:GetChildren()) do
+            if button:IsA("BasePart") or button:IsA("MeshPart") then
+                local distance = (button.Position - rootPart.Position).Magnitude
+                if distance <= FIRE_RADIUS and button.Material == Enum.Material.Neon then
+                    processTouchTransmitter(button)
+                end
+            end
+        end
+        wait(0.5) -- Delay for other buttons
+    end
+end
+
+-- Main cycle for prioritized tasks
 while true do
     -- Process multiplier buttons
     processMultiplierButtons()
-    wait(0.1) -- Small delay between processing multiplier and rebirth logic
+    wait(0.1) -- Small delay before rebirth logic
 
     -- Process rebirth button every 5 seconds
     if tick() - lastRebirthTime >= REBIRTH_COOLDOWN and rebirthButton.Material == Enum.Material.Neon then
@@ -114,9 +129,10 @@ while true do
 
     -- Process rebirth upgrades
     processRebirthUpgrades()
-    wait(0.1) -- Main loop delay to balance performance
+    wait(0.1) -- Main loop delay for prioritized tasks
 end
 
 -- Start independent monitors
 task.spawn(monitorClovaFolder)
 task.spawn(monitorRollRarity)
+task.spawn(processOtherButtons)
