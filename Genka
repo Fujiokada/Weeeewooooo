@@ -38,36 +38,39 @@ local function processTouchTransmitter(part)
     end
 end
 
--- Function to check and fire multiplier buttons in order of priority
-local function handleMultiplierButtons()
+-- Function to cycle through multiplier buttons continuously
+local function cycleMultiplierButtons()
     while true do
         for _, buttonName in ipairs(multiplierButtons) do
             local button = typeof(buttonName) == "string" and buttonsFolder:FindFirstChild(buttonName) or buttonName
-            if button and button:IsA("BasePart") and button.Material == Enum.Material.Neon then
+            if button and button:IsA("BasePart") then
                 processTouchTransmitter(button)
-                break -- Stop firing once the highest priority affordable button is fired
             end
         end
-        wait() -- Avoid excessive cycles
+        wait() -- Allow rapid cycling
     end
 end
 
--- Function to handle rebirth upgrades and button
-local function handleRebirthButtons()
+-- Function to cycle through rebirth upgrades continuously
+local function cycleRebirthUpgrades()
     while true do
-        -- Fire rebirth upgrades in order
         for _, buttonName in ipairs(rebirthButtons) do
             local button = typeof(buttonName) == "string" and buttonsFolder:FindFirstChild(buttonName) or buttonName
-            if button and button:IsA("BasePart") and button.Material == Enum.Material.Neon then
+            if button and button:IsA("BasePart") then
                 processTouchTransmitter(button)
             end
         end
+        wait() -- Allow rapid cycling
+    end
+end
 
-        -- Fire rebirth button with interval
+-- Function to handle rebirth button with interval
+local function fireRebirthButton()
+    while true do
         if rebirthButton and rebirthButton:IsA("BasePart") then
             processTouchTransmitter(rebirthButton)
         end
-        wait(REBIRTH_INTERVAL)
+        wait(REBIRTH_INTERVAL) -- Fire only every 5 seconds
     end
 end
 
@@ -82,7 +85,7 @@ local function monitorClovaFolder()
                 end
             end
         end
-        wait(0.1) -- Independent loop delay
+        wait(1) -- Independent loop delay
     end
 end
 
@@ -92,12 +95,13 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait(0.1) -- Independent loop delay
+        wait(1) -- Independent loop delay
     end
 end
 
 -- Start all functions in independent threads
-task.spawn(handleMultiplierButtons)
-task.spawn(handleRebirthButtons)
+task.spawn(cycleMultiplierButtons)
+task.spawn(cycleRebirthUpgrades)
+task.spawn(fireRebirthButton)
 task.spawn(monitorClovaFolder)
 task.spawn(monitorRollRarity)
