@@ -33,7 +33,7 @@ local function monitorClovaFolder()
                 end
             end
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -43,7 +43,7 @@ local function monitorRollRarity()
         if rollRarityTouch and rollRarityTouch:IsA("BasePart") then
             processTouchTransmitter(rollRarityTouch)
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
@@ -53,20 +53,51 @@ local function monitorNormalRuneRollRarity()
         if normalRuneRollRarity and normalRuneRollRarity:IsA("BasePart") then
             processTouchTransmitter(normalRuneRollRarity)
         end
-        wait() -- Independent loop delay
+        wait(0.1) -- Independent loop delay
     end
 end
 
--- Function to cycle through buttons with a fixed delay, excluding specified buttons
+-- Function to cycle through buttons with prioritization and exceptions
 local function cycleThroughButtons()
     while true do
+        -- Table to store prioritized buttons
+        local prioritizedButtons = {}
+
+        -- First, gather prioritized buttons
         for _, button in ipairs(buttonsFolder:GetChildren()) do
-            if button:IsA("BasePart") and button.Name ~= "Super Multi Get" and button.Name ~= "Prestige Get" then
-                processTouchTransmitter(button) -- Fire the TouchTransmitter
-                wait() -- Delay between firing each button
+            if button:IsA("BasePart") then
+                -- Add buttons with "Rebirth" in their names to prioritizedButtons
+                if string.find(button.Name, "Rebirth") then
+                    table.insert(prioritizedButtons, button)
+                end
+
+                -- Add specifically named buttons to prioritizedButtons
+                if button.Name == "200" or button.Name == "160" or 
+                   button == buttonsFolder:GetChildren()[33] or 
+                   button == buttonsFolder:GetChildren()[32] or 
+                   button == buttonsFolder:GetChildren()[31] then
+                    table.insert(prioritizedButtons, button)
+                end
             end
         end
-        wait() -- Delay before cycling through buttons again
+
+        -- Process prioritized buttons first
+        for _, button in ipairs(prioritizedButtons) do
+            processTouchTransmitter(button) -- Fire the TouchTransmitter
+            wait(0.2) -- Delay between firing each prioritized button
+        end
+
+        -- Then process remaining buttons, excluding exceptions
+        for _, button in ipairs(buttonsFolder:GetChildren()) do
+            if button:IsA("BasePart") and 
+               button.Name ~= "Super Multi Get" and button.Name ~= "Prestige Get" and
+               not table.find(prioritizedButtons, button) then
+                processTouchTransmitter(button) -- Fire the TouchTransmitter
+                wait(0.2) -- Delay between firing each remaining button
+            end
+        end
+
+        wait(0.5) -- Delay before cycling through buttons again
     end
 end
 
