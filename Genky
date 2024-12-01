@@ -1,6 +1,6 @@
 -- External executor script
 
--- References to folders and specific parts
+-- References to folders and specific part
 local clovaFolder = game:GetService("Workspace"):WaitForChild("clova")
 local buttonsFolder = game:GetService("Workspace"):WaitForChild("Buttons")
 local rollRarityTouch = game:GetService("Workspace")["Roll System"]:WaitForChild("RollRarity")
@@ -9,6 +9,8 @@ local normalRuneRollRarity = game:GetService("Workspace").normal.runez:WaitForCh
 local player = game.Players.LocalPlayer -- Reference to the player
 local character = player.Character or player.CharacterAdded:Wait() -- Ensure character is loaded
 local rootPart = character:WaitForChild("HumanoidRootPart") -- Get the player's root part
+
+local FIRE_RADIUS = 200 -- Radius within which MeshParts will be processed
 
 -- Function to process TouchTransmitter of a given part
 local function processTouchTransmitter(part)
@@ -55,20 +57,21 @@ local function monitorNormalRuneRollRarity()
     end
 end
 
--- Function to handle prioritized buttons in an independent loop
-local function processPrioritizedButtons()
+-- Function to cycle through buttons with prioritization and exceptions
+local function cycleThroughButtons()
     while true do
+        -- Table to store prioritized buttons
         local prioritizedButtons = {}
 
-        -- Gather prioritized buttons
+        -- First, gather prioritized buttons
         for _, button in ipairs(buttonsFolder:GetChildren()) do
             if button:IsA("BasePart") then
-                -- Add buttons with "Rebirth" in their names
+                -- Add buttons with "Rebirth" in their names to prioritizedButtons
                 if string.find(button.Name, "Rebirth") then
                     table.insert(prioritizedButtons, button)
                 end
 
-                -- Add specifically named buttons
+                -- Add specifically named buttons to prioritizedButtons
                 if button.Name == "200" or button.Name == "160" or 
                    button == buttonsFolder:GetChildren()[33] or 
                    button == buttonsFolder:GetChildren()[32] or 
@@ -78,29 +81,22 @@ local function processPrioritizedButtons()
             end
         end
 
-        -- Process prioritized buttons
+        -- Process prioritized buttons first
         for _, button in ipairs(prioritizedButtons) do
             processTouchTransmitter(button) -- Fire the TouchTransmitter
             wait() -- Delay between firing each prioritized button
         end
-    end
-end
 
--- Function to cycle through non-prioritized buttons
-local function cycleThroughButtons()
-    while true do
+        -- Then process remaining buttons, excluding exceptions
         for _, button in ipairs(buttonsFolder:GetChildren()) do
             if button:IsA("BasePart") and 
                button.Name ~= "Super Multi Get" and button.Name ~= "Prestige Get" and
-               not string.find(button.Name, "Rebirth") and 
-               button.Name ~= "200" and button.Name ~= "160" and
-               button ~= buttonsFolder:GetChildren()[33] and 
-               button ~= buttonsFolder:GetChildren()[32] and 
-               button ~= buttonsFolder:GetChildren()[31] then
+               not table.find(prioritizedButtons, button) then
                 processTouchTransmitter(button) -- Fire the TouchTransmitter
-                wait() -- Delay between firing each button
+                wait(0.2) -- Delay between firing each remaining button
             end
         end
+
         wait() -- Delay before cycling through buttons again
     end
 end
@@ -108,6 +104,5 @@ end
 -- Start all functions in independent threads
 task.spawn(monitorClovaFolder)
 task.spawn(monitorRollRarity)
-task.spawn(monitorNormalRuneRollRarity)
-task.spawn(processPrioritizedButtons) -- Start independent loop for prioritized buttons
-task.spawn(cycleThroughButtons) -- Start loop for non-prioritized buttons
+task.spawn(monitorNormalRuneRollRarity) -- Start monitoring normal.runez.RollRarity
+task.spawn(cycleThroughButtons)
