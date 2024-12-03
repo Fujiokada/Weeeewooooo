@@ -1,0 +1,34 @@
+-- Define the player and character
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+-- Function to teleport the player to a given position
+local function teleportTo(part)
+    if Character and Character:FindFirstChild("HumanoidRootPart") then
+        Character.HumanoidRootPart.CFrame = part.CFrame
+    end
+end
+
+-- Function to fire the proximity prompt
+local function firePrompt(prompt)
+    if prompt and prompt:IsA("ProximityPrompt") then
+        fireproximityprompt(prompt)
+    end
+end
+
+-- Main loop to watch for the model
+workspace.ChildAdded:Connect(function(child)
+    -- Check if the new child is a model with the correct structure
+    if child:IsA("Model") and child:FindFirstChild("Root") and child.Root:FindFirstChild("ProximityPrompt") then
+        local rootPart = child.Root
+        local proximityPrompt = rootPart.ProximityPrompt
+
+        -- Loop to fire the proximity prompt until it is collected
+        while proximityPrompt.Enabled do
+            teleportTo(rootPart) -- Teleport to the root part
+            firePrompt(proximityPrompt) -- Fire the proximity prompt
+            task.wait(0.5) -- Small delay to avoid spamming
+        end
+    end
+end)
