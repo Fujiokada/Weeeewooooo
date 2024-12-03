@@ -1,0 +1,31 @@
+local player = game.Players.LocalPlayer -- Reference to the local player
+local character = player.Character or player.CharacterAdded:Wait() -- Ensure the character exists
+local enemiesFolder = workspace:FindFirstChild("Enemies") -- Locate the Enemies folder
+
+if enemiesFolder then
+    while true do
+        for _, model in pairs(enemiesFolder:GetChildren()) do
+            if model:IsA("Model") then
+                local playerPosition = character:WaitForChild("HumanoidRootPart").Position
+                
+                -- Calculate the offset for all parts in the model
+                local primaryPart = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+                if primaryPart then
+                    local offset = playerPosition - primaryPart.Position
+                    
+                    -- Move each part in the model
+                    for _, part in pairs(model:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.Position = part.Position + offset
+                        end
+                    end
+                else
+                    warn("No BasePart found in model: " .. model.Name)
+                end
+            end
+        end
+        wait(0.1) -- Adjust the loop delay to control teleport frequency
+    end
+else
+    warn("Enemies folder not found in the workspace!")
+end
