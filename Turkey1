@@ -17,18 +17,27 @@ local function firePrompt(prompt)
     end
 end
 
--- Main loop to watch for the model
-workspace.ChildAdded:Connect(function(child)
-    -- Check if the new child is a model with the correct structure
-    if child:IsA("Model") and child:FindFirstChild("Root") and child.Root:FindFirstChild("ProximityPrompt") then
-        local rootPart = child.Root
-        local proximityPrompt = rootPart.ProximityPrompt
-
-        -- Loop to fire the proximity prompt until it is collected
-        while proximityPrompt.Enabled do
+-- Main function to handle the model
+local function handleModel(model)
+    if not model:IsA("Model") then return end
+    
+    local rootPart = model:FindFirstChild("Root")
+    local proximityPrompt = rootPart and rootPart:FindFirstChild("ProximityPrompt")
+    
+    if rootPart and proximityPrompt then
+        -- Loop to fire the proximity prompt until it's disabled or the model is gone
+        while proximityPrompt.Enabled and model.Parent do
             teleportTo(rootPart) -- Teleport to the root part
             firePrompt(proximityPrompt) -- Fire the proximity prompt
             task.wait(0.5) -- Small delay to avoid spamming
         end
+    end
+end
+
+-- Listener for new models being added to the workspace
+workspace.ChildAdded:Connect(function(child)
+    -- Check if the new child is a valid target model
+    if child:IsA("Model") and child:FindFirstChild("Root") and child.Root:FindFirstChild("ProximityPrompt") then
+        handleModel(child) -- Handle the new model
     end
 end)
