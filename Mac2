@@ -26,7 +26,7 @@ local function hookRemotes()
                 timestamp = os.clock() - startTime, -- Relative time
             }
             table.insert(recording, eventInfo)
-            print("[Recorder] Recorded:", HttpService:JSONEncode(eventInfo))
+            print("[Recorder] Recorded:", HttpService:JSONEncode(eventInfo)) -- Proper function call
         end
 
         -- Continue with the original function
@@ -67,7 +67,7 @@ local function saveRecording(filename)
         return
     end
 
-    local json = HttpService:JSONEncode(recording)
+    local json = HttpService:JSONEncode(recording) -- Proper function call
     writefile(filename, json)
     print("[Recorder] Recording saved to:", filename)
 end
