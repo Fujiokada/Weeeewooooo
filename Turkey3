@@ -1,3 +1,19 @@
+-- Global execution guard
+if _G.ScriptAlreadyExecuted then
+    print("[DEBUG] Script is already running. Aborting execution.")
+    return
+end
+_G.ScriptAlreadyExecuted = true
+
+-- Toggle debug mode
+local DEBUG_MODE = true -- Set to false to disable debug prints
+
+local function debugPrint(...)
+    if DEBUG_MODE then
+        print("[DEBUG]", ...)
+    end
+end
+
 -- Services
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -10,26 +26,26 @@ local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     Character = newCharacter
     HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
-    print("[DEBUG] Character reset detected. New character loaded.")
+    debugPrint("Character reset detected. New character loaded.")
 end)
 
 -- Function to teleport the player to a given position
 local function teleportTo(part)
     if HumanoidRootPart then
-        print("[DEBUG] Teleporting to:", part.Name, "at position:", part.Position)
+        debugPrint("Teleporting to:", part.Name, "at position:", part.Position)
         HumanoidRootPart.CFrame = part.CFrame
     else
-        print("[DEBUG] HumanoidRootPart not found!")
+        debugPrint("HumanoidRootPart not found!")
     end
 end
 
 -- Function to fire the proximity prompt
 local function firePrompt(prompt)
     if prompt and prompt:IsA("ProximityPrompt") then
-        print("[DEBUG] Firing proximity prompt:", prompt.Name)
+        debugPrint("Firing proximity prompt:", prompt.Name)
         fireproximityprompt(prompt)
     else
-        print("[DEBUG] ProximityPrompt not valid or missing!")
+        debugPrint("ProximityPrompt not valid or missing!")
     end
 end
 
@@ -39,26 +55,26 @@ local function handleT0(model)
     local proximityPrompt = rootPart and rootPart:FindFirstChild("ProximityPrompt")
 
     if rootPart and proximityPrompt then
-        print("[DEBUG] T0 detected: Root =", rootPart.Name, "| Prompt =", proximityPrompt.Name)
+        debugPrint("T0 detected: Root =", rootPart.Name, "| Prompt =", proximityPrompt.Name)
         -- Loop to fire the proximity prompt until it's disabled or the model is gone
         while proximityPrompt.Enabled and model.Parent do
-            print("[DEBUG] Collecting T0...")
+            debugPrint("Collecting T0...")
             teleportTo(rootPart) -- Teleport to the root part
             firePrompt(proximityPrompt) -- Fire the proximity prompt
             task.wait(0.5) -- Small delay to avoid spamming
         end
-        print("[DEBUG] T0 collection complete or model removed.")
+        debugPrint("T0 collection complete or model removed.")
     else
-        print("[DEBUG] T0 is missing Root or ProximityPrompt.")
+        debugPrint("T0 is missing Root or ProximityPrompt.")
     end
 end
 
 -- Listener for new models being added to the workspace
 workspace.ChildAdded:Connect(function(child)
     if child:IsA("Model") and child.Name == "T0" then
-        print("[DEBUG] T0 model added to workspace:", child.Name)
+        debugPrint("T0 model added to workspace:", child.Name)
         handleT0(child) -- Handle the T0 model
     else
-        print("[DEBUG] Ignored object:", child.Name)
+        debugPrint("Ignored object:", child.Name)
     end
 end)
