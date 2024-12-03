@@ -13,24 +13,26 @@ local function hookRemotes()
     local oldNamecall = mt.__namecall
     setreadonly(mt, false)
 
-    mt.__namecall = function(self, ...)
+    mt.__namecall = function(remote, ...)
         local method = getnamecallmethod()
         local args = {...}
 
         -- Check if it's a RemoteEvent or RemoteFunction call
         if isRecording and (method == "FireServer" or method == "InvokeServer") then
             local eventInfo = {
-                remoteName = self.Name,
+                remoteName = remote.Name,
                 method = method,
                 arguments = args,
                 timestamp = os.clock() - startTime, -- Relative time
             }
             table.insert(recording, eventInfo)
-            print("[Recorder] Recorded:", HttpService:JSONEncode(eventInfo)) -- Proper function call
+
+            -- Explicitly reference HttpService to avoid "self" conflicts
+            print("[Recorder] Recorded:", HttpService:JSONEncode(eventInfo))
         end
 
         -- Continue with the original function
-        return oldNamecall(self, ...)
+        return oldNamecall(remote, ...)
     end
 
     setreadonly(mt, true)
@@ -67,7 +69,7 @@ local function saveRecording(filename)
         return
     end
 
-    local json = HttpService:JSONEncode(recording) -- Proper function call
+    local json = HttpService:JSONEncode(recording) -- Properly references HttpService
     writefile(filename, json)
     print("[Recorder] Recording saved to:", filename)
 end
@@ -76,7 +78,7 @@ end
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
-    if input.KeyCode == Enum.KeyCode.P then
+    if input.KeyCode == Enum.KeyCode.F1 then
         if not isRecording then
             startRecording()
         else
