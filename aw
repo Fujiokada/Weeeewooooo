@@ -9,7 +9,9 @@ local recordTab = main:Channel("Recorder")
 local Recording = {}
 local IsRecording = false
 local StartTime = 0
-local RecordingFileName = "macro_recording.json"
+local RecordingFileName = "recording.json"
+local GitHubToken = "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"
+local Repository = "Fujiokada/Random"
 
 -- Utility Functions
 local function startRecording()
@@ -24,23 +26,52 @@ local function stopRecording()
     DiscordLib:Notification("Notification", "Recording Stopped!", "Okay!")
 end
 
-local function saveRecording(filename)
-    if syn and syn.writefile then
-        local json = game:GetService("HttpService"):JSONEncode(Recording)
-        syn.writefile(filename, json)
-        DiscordLib:Notification("Notification", "Recording Saved as " .. filename, "Okay!")
+local function saveToGitHub(filename)
+    local json = game:GetService("HttpService"):JSONEncode(Recording)
+    local url = "https://api.github.com/repos/" .. Repository .. "/contents/" .. filename
+    local encodedContent = game:GetService("HttpService"):UrlEncode(json)
+    
+    local response = http.request({
+        Url = url,
+        Method = "PUT",
+        Headers = {
+            ["Authorization"] = "token " .. GitHubToken,
+            ["Content-Type"] = "application/json",
+        },
+        Body = game:GetService("HttpService"):JSONEncode({
+            message = "Add recording file",
+            content = game:GetService("HttpService"):Base64Encode(json), -- Encoding content to Base64
+        }),
+    })
+    
+    if response.Success then
+        print("[DEBUG] Recording uploaded to GitHub! URL:", response.Body)
+        DiscordLib:Notification("Notification", "Recording uploaded to GitHub!", "Okay!")
     else
-        DiscordLib:Notification("Error", "Failed to save recording! Missing executor functionality.", "Okay!")
+        print("[ERROR] GitHub upload failed:", response.StatusMessage)
+        DiscordLib:Notification("Error", "Failed to upload to GitHub.", "Okay!")
     end
 end
 
-local function loadRecording(filename)
-    if syn and syn.readfile then
-        local json = syn.readfile(filename)
-        Recording = game:GetService("HttpService"):JSONDecode(json)
-        DiscordLib:Notification("Notification", "Recording Loaded: " .. filename, "Okay!")
+local function loadFromGitHub(filename)
+    local url = "https://api.github.com/repos/" .. Repository .. "/contents/" .. filename
+    
+    local response = http.request({
+        Url = url,
+        Method = "GET",
+        Headers = {
+            ["Authorization"] = "token " .. GitHubToken,
+        },
+    })
+    
+    if response.Success then
+        local responseData = game:GetService("HttpService"):JSONDecode(response.Body)
+        local decodedContent = game:GetService("HttpService"):JSONDecode(game:GetService("HttpService"):Base64Decode(responseData.content))
+        Recording = decodedContent
+        DiscordLib:Notification("Notification", "Recording loaded from GitHub!", "Okay!")
     else
-        DiscordLib:Notification("Error", "Failed to load recording! Missing executor functionality.", "Okay!")
+        print("[ERROR] Failed to load recording from GitHub:", response.StatusMessage)
+        DiscordLib:Notification("Error", "Failed to load recording from GitHub.", "Okay!")
     end
 end
 
@@ -92,12 +123,12 @@ recordTab:Textbox("Filename", "Enter filename here...", false, function(input)
     RecordingFileName = input
 end)
 
-recordTab:Button("Save Recording", function()
-    saveRecording(RecordingFileName)
+recordTab:Button("Save to GitHub", function()
+    saveToGitHub(RecordingFileName)
 end)
 
-recordTab:Button("Load Recording", function()
-    loadRecording(RecordingFileName)
+recordTab:Button("Load from GitHub", function()
+    loadFromGitHub(RecordingFileName)
 end)
 
 recordTab:Button("Replay Recording", function()
