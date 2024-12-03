@@ -1,12 +1,21 @@
--- Define the player and character
+-- Services
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+
+-- Character and HumanoidRootPart reference
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Update references when the character resets
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    Character = newCharacter
+    HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+end)
 
 -- Function to teleport the player to a given position
 local function teleportTo(part)
-    if Character and Character:FindFirstChild("HumanoidRootPart") then
-        Character.HumanoidRootPart.CFrame = part.CFrame
+    if HumanoidRootPart then
+        HumanoidRootPart.CFrame = part.CFrame
     end
 end
 
