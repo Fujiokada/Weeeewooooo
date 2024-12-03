@@ -10,43 +10,61 @@ local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     Character = newCharacter
     HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+    print("[DEBUG] Character reset detected. New character loaded.")
 end)
 
 -- Function to teleport the player to a given position
 local function teleportTo(part)
     if HumanoidRootPart then
+        print("[DEBUG] Teleporting to:", part.Name, "at position:", part.Position)
         HumanoidRootPart.CFrame = part.CFrame
+    else
+        print("[DEBUG] HumanoidRootPart not found!")
     end
 end
 
 -- Function to fire the proximity prompt
 local function firePrompt(prompt)
     if prompt and prompt:IsA("ProximityPrompt") then
+        print("[DEBUG] Firing proximity prompt:", prompt.Name)
         fireproximityprompt(prompt)
+    else
+        print("[DEBUG] ProximityPrompt not valid or missing!")
     end
 end
 
 -- Main function to handle the model
 local function handleModel(model)
-    if not model:IsA("Model") then return end
+    if not model:IsA("Model") then 
+        print("[DEBUG] Invalid object added, not a Model:", model.Name)
+        return 
+    end
     
     local rootPart = model:FindFirstChild("Root")
     local proximityPrompt = rootPart and rootPart:FindFirstChild("ProximityPrompt")
     
     if rootPart and proximityPrompt then
+        print("[DEBUG] Model detected:", model.Name, "| Root:", rootPart.Name, "| Prompt:", proximityPrompt.Name)
         -- Loop to fire the proximity prompt until it's disabled or the model is gone
         while proximityPrompt.Enabled and model.Parent do
+            print("[DEBUG] Prompt enabled. Collecting...")
             teleportTo(rootPart) -- Teleport to the root part
             firePrompt(proximityPrompt) -- Fire the proximity prompt
             task.wait(0.5) -- Small delay to avoid spamming
         end
+        print("[DEBUG] Collection complete or model removed:", model.Name)
+    else
+        print("[DEBUG] Model missing required parts: Root or ProximityPrompt")
     end
 end
 
 -- Listener for new models being added to the workspace
 workspace.ChildAdded:Connect(function(child)
     -- Check if the new child is a valid target model
+    print("[DEBUG] New object added to workspace:", child.Name)
     if child:IsA("Model") and child:FindFirstChild("Root") and child.Root:FindFirstChild("ProximityPrompt") then
         handleModel(child) -- Handle the new model
+    else
+        print("[DEBUG] Ignored object:", child.Name)
     end
 end)
