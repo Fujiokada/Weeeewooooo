@@ -1,0 +1,155 @@
+-- Configuration
+local recordKey = Enum.KeyCode.R -- Key to toggle recording
+local playbackKey = Enum.KeyCode.P -- Key to start playback
+local stopPlaybackKey = Enum.KeyCode.T -- Key to stop playback
+
+-- Services
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+-- Variables
+local recording = false
+local playback = false
+local recordedActions = {} -- Stores all recorded inputs
+local lastActionTime = 0 -- Tracks time between actions
+
+-- Helper: Send notifications
+local function sendNotification(title, text, duration)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = duration or 5; -- Default duration is 5 seconds
+    })
+end
+
+-- Function to start/stop recording
+local function toggleRecording()
+    recording = not recording
+    if recording then
+        sendNotification("Recording", "Recording started...", 5)
+        recordedActions = {} -- Clear previous recordings
+        lastActionTime = tick() -- Start timing
+    else
+        sendNotification("Recording", "Recording stopped.", 5)
+    end
+end
+
+-- Function to play back recorded inputs
+local function playBack()
+    if #recordedActions == 0 then
+        sendNotification("Playback", "No actions recorded!", 5)
+        return
+    end
+    
+    sendNotification("Playback", "Playback started...", 5)
+    playback = true
+    
+    for _, action in ipairs(recordedActions) do
+        if not playback then break end -- Stop playback if toggled off
+        
+        wait(action.delay) -- Wait for the recorded delay
+        
+        if action.type == "Key" then
+            VirtualInputManager:SendKeyEvent(action.state, action.key, false, game)
+        elseif action.type == "MouseButton" then
+            VirtualInputManager:SendMouseButtonEvent(
+                action.position.X, 
+                action.position.Y, 
+                action.state, 
+                action.button, 
+                game
+            )
+        elseif action.type == "MouseMove" then
+            VirtualInputManager:SendMouseMoveEvent(action.position.X, action.position.Y)
+        end
+    end
+    
+    sendNotification("Playback", "Playback finished.", 5)
+end
+
+-- Function to stop playback
+local function stopPlayback()
+    playback = false
+    sendNotification("Playback", "Playback stopped.", 5)
+end
+
+-- Function to calculate delay since the last action
+local function getDelay()
+    local currentTime = tick()
+    local delay = currentTime - lastActionTime
+    lastActionTime = currentTime
+    return delay
+end
+
+-- Capture all user inputs during recording
+UserInputService.InputBegan:Connect(function(input)
+    if recording then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            -- Record keyboard input
+            table.insert(recordedActions, {
+                type = "Key",
+                key = input.KeyCode,
+                state = true,
+                delay = getDelay()
+            })
+        elseif input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.MouseButton2 then
+            -- Record mouse button press
+            table.insert(recordedActions, {
+                type = "MouseButton",
+                position = UserInputService:GetMouseLocation(),
+                state = true,
+                button = input.UserInputType,
+                delay = getDelay()
+            })
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if recording then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            -- Record keyboard release
+            table.insert(recordedActions, {
+                type = "Key",
+                key = input.KeyCode,
+                state = false,
+                delay = getDelay()
+            })
+        elseif input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.MouseButton2 then
+            -- Record mouse button release
+            table.insert(recordedActions, {
+                type = "MouseButton",
+                position = UserInputService:GetMouseLocation(),
+                state = false,
+                button = input.UserInputType,
+                delay = getDelay()
+            })
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if recording and input.UserInputType == Enum.UserInputType.MouseMovement then
+        -- Record mouse movement
+        table.insert(recordedActions, {
+            type = "MouseMove",
+            position = UserInputService:GetMouseLocation(),
+            delay = getDelay()
+        })
+    end
+end)
+
+-- Hotkey listeners for toggling recording and playback
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == recordKey then
+        toggleRecording()
+    elseif input.KeyCode == playbackKey then
+        playBack()
+    elseif input.KeyCode == stopPlaybackKey then
+        stopPlayback()
+    end
+end)
